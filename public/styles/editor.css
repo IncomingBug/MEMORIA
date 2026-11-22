@@ -296,6 +296,20 @@
   border-color: var(--gold);
 }
 
+.inspector-color-input {
+  width: 28px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+  background: transparent;
+}
+
+.inspector-color-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 /* Palette Elements Tray */
 .editor-elements-tray {
   flex: 1;

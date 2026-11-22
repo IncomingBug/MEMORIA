@@ -1619,7 +1619,7 @@ class ScrapbookViewer {
         ? el.style.textAlign
         : "left";
       div.innerHTML += `
-        <div style="font-family: ${el.style?.font || 'Cormorant Garamond'}; font-size: ${el.style?.size || 20}px; color: ${el.style?.color || '#211711'}; width: 100%; height: 100%; line-height: 1.5; padding: 4px; white-space: pre-wrap; text-align: ${textAlign};">
+        <div class="scrapbook-plain-text" style="font-family: ${el.style?.font || 'Cormorant Garamond'}; font-size: ${el.style?.size || 20}px; color: ${el.style?.color || '#211711'}; text-align: ${textAlign};">
           ${textContent}
         </div>
       `;

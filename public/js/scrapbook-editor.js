@@ -84,16 +84,25 @@ class ScrapbookEditor {
 
     const colorInput = document.getElementById("inspectorColorInput");
     colorInput?.addEventListener("input", (e) => {
-      if (!this.selectedElementModel) return;
+      if (!this.selectedElementModel || !["sticky", "music"].includes(this.selectedElementModel.type)) return;
       if (!this.selectedElementModel.style) this.selectedElementModel.style = {};
       this.selectedElementModel.style.bgColor = e.target.value;
       this.updateDomForSelectedElement();
       this.debouncedSave();
     });
 
+    const textColorInput = document.getElementById("inspectorTextColorInput");
+    textColorInput?.addEventListener("input", (e) => {
+      if (!this.selectedElementModel || !["sticky", "text", "polaroid"].includes(this.selectedElementModel.type)) return;
+      if (!this.selectedElementModel.style) this.selectedElementModel.style = {};
+      this.selectedElementModel.style.color = e.target.value;
+      this.updateDomForSelectedElement();
+      this.debouncedSave();
+    });
+
     document.querySelectorAll(".inspector-swatch").forEach(swatch => {
       swatch.addEventListener("click", () => {
-        if (!this.selectedElementModel) return;
+        if (!this.selectedElementModel || !["sticky", "music"].includes(this.selectedElementModel.type)) return;
         if (!this.selectedElementModel.style) this.selectedElementModel.style = {};
         const col = swatch.dataset.color;
         this.selectedElementModel.style.bgColor = col;
@@ -558,7 +567,7 @@ class ScrapbookEditor {
         handle.removeEventListener("pointermove", resize);
         handle.removeEventListener("pointerup", finish);
         handle.removeEventListener("pointercancel", finish);
-        if (model.type === "sticky") this.fitStickyToContent(element);
+        if (["sticky", "text"].includes(model.type)) this.fitTextToContent(element);
         this.updateElementModel(element);
         window.scrapbookViewer?.clampRotatedElementToPage(page, model, element);
         this.snapshot();
@@ -661,7 +670,7 @@ class ScrapbookEditor {
     // Sync Inspector Bar
     this.populateInspectorBar();
     this.attachOverlayControls(domEl);
-    if (this.fitStickyToContent(domEl)) {
+    if (this.fitTextToContent(domEl)) {
       this.snapshot();
       this.debouncedSave();
     }
@@ -682,6 +691,7 @@ class ScrapbookEditor {
     const fontSelect = document.getElementById("inspectorFontSelect");
     const sizeSelect = document.getElementById("inspectorFontSizeSelect");
     const colorInput = document.getElementById("inspectorColorInput");
+    const textColorInput = document.getElementById("inspectorTextColorInput");
 
     if (!this.selectedElementModel) return;
 
@@ -715,7 +725,14 @@ class ScrapbookEditor {
 
     if (colorInput) {
       colorInput.value = this.selectedElementModel.style?.bgColor || "#fff9c4";
-      colorInput.disabled = false;
+      colorInput.disabled = !["sticky", "music"].includes(this.selectedElementModel.type);
+    }
+
+    if (textColorInput) {
+      const supportsTextColor = ["sticky", "text", "polaroid"].includes(this.selectedElementModel.type);
+      textColorInput.value = this.selectedElementModel.style?.color ||
+        (this.selectedElementModel.type === "sticky" ? "#332b00" : "#211711");
+      textColorInput.disabled = !supportsTextColor;
     }
   }
 
@@ -725,12 +742,14 @@ class ScrapbookEditor {
     const sizeSelect = document.getElementById("inspectorFontSizeSelect");
     const textAlignSelect = document.getElementById("inspectorTextAlignSelect");
     const colorInput = document.getElementById("inspectorColorInput");
+    const textColorInput = document.getElementById("inspectorTextColorInput");
 
     if (textInput) { textInput.value = ""; textInput.disabled = true; }
     if (fontSelect) fontSelect.disabled = true;
     if (sizeSelect) sizeSelect.disabled = true;
     if (textAlignSelect) textAlignSelect.disabled = true;
     if (colorInput) colorInput.disabled = true;
+    if (textColorInput) textColorInput.disabled = true;
   }
 
   updateDomForSelectedElement() {
@@ -746,6 +765,7 @@ class ScrapbookEditor {
         titleEl.innerText = this.selectedElementModel.content.title || "";
         if (style.font) titleEl.style.fontFamily = style.font;
         if (style.size) titleEl.style.fontSize = `${style.size}px`;
+        if (style.color) titleEl.style.color = style.color;
       }
     } else if (this.selectedElementModel.type === "sticky") {
       const noteEl = domEl.querySelector(".sticky-note");
@@ -754,50 +774,59 @@ class ScrapbookEditor {
         if (style.bgColor) noteEl.style.backgroundColor = style.bgColor;
         if (style.font) noteEl.style.fontFamily = style.font;
         if (style.size) noteEl.style.fontSize = `${style.size}px`;
+        if (style.color) noteEl.style.color = style.color;
         noteEl.style.textAlign = style.textAlign || "left";
       }
       if (textEl) {
         textEl.textContent = this.selectedElementModel.content.text || "";
         textEl.style.textAlign = style.textAlign || "left";
       }
-      this.fitStickyToContent(domEl);
+      this.fitTextToContent(domEl);
     } else if (this.selectedElementModel.type === "text") {
       domEl.style.fontFamily = style.font || "Cormorant Garamond";
       domEl.style.fontSize = `${style.size || 20}px`;
-      const inner = domEl.querySelector("div");
+      const inner = domEl.querySelector(".scrapbook-plain-text");
       if (inner) {
         inner.textContent = this.selectedElementModel.content.text || "";
         inner.style.textAlign = style.textAlign || "left";
+        if (style.color) inner.style.color = style.color;
       }
+      this.fitTextToContent(domEl);
     } else if (this.selectedElementModel.type === "music") {
       const stickerEl = domEl.querySelector(".music-sticker");
       if (stickerEl && style.bgColor) stickerEl.style.backgroundColor = style.bgColor;
     }
   }
 
-  fitStickyToContent(domEl) {
+  fitTextToContent(domEl) {
     const model = this.selectedElementModel;
     const page = domEl.closest(".entry-scrapbook-page");
-    const note = domEl.querySelector(".sticky-note");
-    const text = note?.querySelector(".sticky-text-body");
-    if (model?.type !== "sticky" || !page || !note || !text) return false;
+    if (!["sticky", "text"].includes(model?.type) || !page) return false;
+
+    const box = model.type === "sticky"
+      ? domEl.querySelector(".sticky-note")
+      : domEl.querySelector(".scrapbook-plain-text");
+    const text = model.type === "sticky" ? box?.querySelector(".sticky-text-body") : box;
+    if (!box || !text) return false;
 
     const pageRect = page.getBoundingClientRect();
     if (!pageRect.height) return false;
 
     const availableHeight = Math.max(0, 100 - Number(model.y || 0));
     const previousHeight = Number(model.h) || 0;
-    const noteStyle = getComputedStyle(note);
-    const verticalPadding = parseFloat(noteStyle.paddingTop) + parseFloat(noteStyle.paddingBottom);
+    const boxStyle = getComputedStyle(box);
+    const verticalPadding = model.type === "sticky"
+      ? parseFloat(boxStyle.paddingTop) + parseFloat(boxStyle.paddingBottom)
+      : 0;
     const requiredHeight = (text.scrollHeight + verticalPadding) / pageRect.height * 100;
     const nextHeight = Math.min(availableHeight, Math.max(previousHeight, requiredHeight));
     const changed = nextHeight > previousHeight + 0.1;
 
     model.h = nextHeight;
     domEl.style.height = `${nextHeight}%`;
-    note.style.height = "100%";
-    note.style.overflowY = requiredHeight > availableHeight ? "auto" : "visible";
-    note.style.overflowX = "hidden";
+    box.style.height = "100%";
+    box.style.overflowY = requiredHeight > availableHeight ? "auto" : "hidden";
+    box.style.overflowX = "hidden";
     return changed;
   }
 
