@@ -23,6 +23,7 @@ MEMORIA v2 runs in **two execution modes** behind a unified client storage abstr
 - **Fallbacks:** Automatically uses intelligent local follow-up questions, client-side reflections, and official music links when running serverless.
 - **Authentication setup:** Enable Anonymous Authentication in Firebase Authentication for automatic demo sign-in, or use the email/password sign-in and account creation form.
 - **AI:** Static hosting does not expose a Groq key. Configure `window.MEMORIA_AI_ENDPOINT_URL` to a protected AI proxy; otherwise the documented fallback is used.
+- **Before sharing:** Enable Email/Password in Firebase Authentication, or enable Anonymous for one-click demo access. Deploy `firestore.rules` to the configured Firebase project before inviting testers.
 
 ---
 
@@ -32,7 +33,6 @@ MEMORIA v2 runs in **two execution modes** behind a unified client storage abstr
 
 1. **Install dependencies:**
    ```bash
-   cd memoria-v2
    npm install
    ```
 2. **Configure environment variables (optional):**
@@ -63,9 +63,9 @@ npm test
    ```bash
    npm run build:static
    ```
-   *Creates an optimized, standalone distribution in `dist/` with `.nojekyll`.*
-2. **Configure Firebase (optional for Mode B):**
-   Edit `firebase-config.js` with your Firebase web credentials:
+   *Creates a standalone static distribution in `dist/` with `.nojekyll`.*
+2. **Configure Firebase for cloud saves:**
+   Edit the root `firebase-config.js` with your Firebase web-app configuration:
    ```javascript
    window.MEMORIA_FIREBASE_CONFIG = {
      apiKey: "YOUR_API_KEY",
@@ -79,7 +79,7 @@ npm test
    ```bash
    firebase deploy --only hosting,firestore:rules
    ```
-   *Or push to `main` to trigger the automated GitHub Pages workflow in `.github/workflows/deploy.yml`.*
+   *For GitHub Pages, set the repository's Pages source to **GitHub Actions**, then push to `main` to trigger `.github/workflows/deploy.yml`. The workflow deploys the static site; deploy Firestore rules separately with `firebase deploy --only firestore:rules`.*
 
 ---
 
@@ -95,7 +95,7 @@ All application state conforms to a single versioned JSON structure (`schemaVers
   - `title`, `description`
   - `followUpAnswers[]`: `[{ question, answer }]`
   - `tags[]`: Array of tag IDs
-  - `music`: `{ title, artist, link, provider }`
+  - `music`: `{ title, artist, link, provider, atmosphere }`
   - `geolocation`: `{ lat, lng, label }`
   - `filter`: CSS filter name (`none`, `warm`, `vintage`, `bw`, `faded`, `dramatic`)
   - `media[]`: `[{ id, type, pathOrDocId, title, order }]`
@@ -103,8 +103,8 @@ All application state conforms to a single versioned JSON structure (`schemaVers
 - **`drafts[]`** *(Max 5)*: `{ id, savedAt, step, partialEntry }`
 - **`scrapbook`**:
   - `cover`: `{ color, texture, title, elements[] }`
-  - `pages[]`: `{ id, kind, section, paper: { color, lining, width, height }, elements[] }`
-  - `chapters[]`: `{ id, name, pageIds[] }`
+  - `pages[]`: `{ id, kind, section, atmosphere, paper: { color, lining, width, height }, elements[] }`
+  - `chapters[]`: `{ id, name, pageIds[], entryId? }`
   - `theme`: Editorial design theme string
 - **`element`**:
   - `{ id, type, x, y, w, h, rotation, z, content, style, seed }`
@@ -174,6 +174,11 @@ All application state conforms to a single versioned JSON structure (`schemaVers
 - **Scrapbook Cover Customizer:** Rightmost gear icon opens the cover modal to customize title, leather/cloth texture, and colors.
 - **History & Auto-Save:** 30-level Undo/Redo stack with debounced background synchronization.
 
+### 🌦️ Day Atmosphere System
+- Mood sets the page-paper palette; the selected soundtrack feeling (quiet, warm, bright, dreamy, or restless) changes the note color, typeface, photo treatment, and composition.
+- Each saved memory gets its own scrapbook page and chapter named from the story. The suggested title uses story keywords and can be edited before saving.
+- The visual language stays consistent through the same page structure and type system, while the mood and soundtrack choices explain each day's variation.
+
 ---
 
 ## 5. Limits & Guardrails
@@ -193,7 +198,7 @@ All application state conforms to a single versioned JSON structure (`schemaVers
 ## 6. Project Directory Tree
 
 ```
-memoria-v2/
+MEMORIA/
 ├── .env.example
 ├── .gitignore
 ├── .github/workflows/deploy.yml
@@ -201,6 +206,7 @@ memoria-v2/
 ├── firebase.json
 ├── firestore.rules
 ├── package.json
+├── package-lock.json
 ├── PLAN.md
 ├── PROGRESS.md
 ├── README.md
@@ -208,9 +214,10 @@ memoria-v2/
 ├── scripts/
 │   └── build-static.js
 ├── test/
+│   ├── atmosphere.test.js
 │   ├── api.test.js
 │   └── data-schema.test.js
-├── uploads/
+├── uploads/             (created at runtime; ignored by Git)
 └── public/
     ├── index.html
     ├── assets/

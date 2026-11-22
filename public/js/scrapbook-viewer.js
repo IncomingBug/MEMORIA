@@ -17,6 +17,7 @@ class ScrapbookViewer {
     this.isClosing = false;
     this.isOpening = false;
     this.currentPageIndex = 0;
+    this.defaultEntryPagesGenerated = false;
 
     this.init();
   }
@@ -301,7 +302,8 @@ class ScrapbookViewer {
       this.generateDefaultEntryPages();
       userPages = this.scrapbookData?.pages || [];
     }
-    let needsPageSave = false;
+    let needsPageSave = this.defaultEntryPagesGenerated;
+    this.defaultEntryPagesGenerated = false;
     if (userPages.length % 2 !== 0) {
       userPages.push({
         id: `page-user-${Date.now()}-R`,
@@ -1397,45 +1399,50 @@ class ScrapbookViewer {
   // -------------------------------------------------------------------
   // AUTO-PLACEMENT OF NEW ENTRIES ONTO SCRAPBOOK PAGES
   // -------------------------------------------------------------------
-  async autoPlaceEntry(entry) {
+  async autoPlaceEntry(entry, persist = true) {
     if (!this.scrapbookData) {
       this.scrapbookData = await window.storageAdapter.getScrapbook();
     }
     if (!this.scrapbookData.pages) this.scrapbookData.pages = [];
 
-    let targetPage = this.scrapbookData.pages[this.scrapbookData.pages.length - 1];
-    if (!targetPage || (targetPage.elements || []).length >= 3) {
-      targetPage = {
-        id: `page-user-${Date.now()}`,
-        kind: "entry",
-        section: "entries",
-        layoutUnit: "percent",
-        paper: { color: "#f8f3e8", lining: "ruled", width: 530, height: 710 },
-        elements: []
-      };
-      this.scrapbookData.pages.push(targetPage);
-    }
+    if (this.scrapbookData.pages.some(page => page.entryId === entry.id)) return;
 
+    const atmosphere = Utils.getMemoryAtmosphere(entry.mood, entry.music?.atmosphere, entry.filter);
+    const layout = atmosphere.layout;
+    const targetPage = {
+      id: `page-entry-${entry.id}`,
+      entryId: entry.id,
+      title: entry.title,
+      kind: "entry",
+      section: "entries",
+      layoutUnit: "percent",
+      atmosphere: { mood: atmosphere.mood, soundtrackMood: atmosphere.soundtrackMood },
+      paper: { color: atmosphere.paperColor, lining: "none", width: 530, height: 710 },
+      elements: []
+    };
+    this.scrapbookData.pages.push(targetPage);
+
+    const photo = (entry.media || []).find(media => media.type === "image" || media.type === "gif") || entry.media?.[0];
     const seed = Date.now() % 10000;
-    const rotation = Utils.getMessyRotation(seed);
+    const rotation = Utils.getMessyRotation(seed) * atmosphere.rotationScale;
 
     const polaroidEl = {
       id: `el-polaroid-${Date.now()}`,
       type: "polaroid",
       entryId: entry.id,
-      x: 6,
-      y: 7,
-      w: 42,
+      x: layout.photoX,
+      y: layout.photoY,
+      w: layout.photoWidth,
       h: 40,
       rotation,
       z: 1,
       content: {
-        photoUrl: entry.media?.[0]?.pathOrDocId || "",
-        mediaId: entry.media?.[0]?.docId || entry.media?.[0]?.id,
+        photoUrl: photo?.pathOrDocId || "",
+        mediaId: photo?.docId || photo?.id,
         title: entry.title || "",
         capturedAt: entry.date || ""
       },
-      style: { font: "DM Sans", size: 14, color: "#211711" },
+      style: { font: "DM Sans", size: 14, color: "#211711", photoFilter: atmosphere.photoFilter },
       seed
     };
     targetPage.elements.push(polaroidEl);
@@ -1445,14 +1452,14 @@ class ScrapbookViewer {
         id: `el-sticky-${Date.now() + 1}`,
         type: "sticky",
         entryId: entry.id,
-        x: 52,
-        y: 43,
+        x: layout.noteX,
+        y: layout.noteY,
         w: 42,
         h: 28,
         rotation: -rotation,
         z: 2,
         content: { text: entry.description },
-        style: { font: "Caveat", size: 18, color: "#332b00", bgColor: "#fff9c4" },
+        style: { font: atmosphere.font, size: 18, color: "#332b00", bgColor: atmosphere.noteColor },
         seed: seed + 1
       });
     }
@@ -1462,8 +1469,8 @@ class ScrapbookViewer {
         id: `el-music-${Date.now() + 2}`,
         type: "music",
         entryId: entry.id,
-        x: 6,
-        y: 72,
+        x: layout.musicX,
+        y: layout.musicY,
         w: 42,
         h: entry.music.embedUrl || entry.music.videoId ? 26 : 12,
         rotation: rotation * 0.5,
@@ -1474,14 +1481,26 @@ class ScrapbookViewer {
       });
     }
 
-    await window.storageAdapter.saveScrapbook(this.scrapbookData);
+    if (!Array.isArray(this.scrapbookData.chapters)) this.scrapbookData.chapters = [];
+    if (!this.scrapbookData.chapters.some(chapter => chapter.entryId === entry.id)) {
+      this.scrapbookData.chapters.push({
+        id: `chapter-${entry.id}`,
+        entryId: entry.id,
+        name: entry.title || Utils.generateMemoryTitle(entry.description, entry.date),
+        pageIds: [targetPage.id]
+      });
+    }
+
+    if (persist) await window.storageAdapter.saveScrapbook(this.scrapbookData);
   }
 
   generateDefaultEntryPages() {
     this.scrapbookData.pages = [];
+    this.scrapbookData.chapters = (this.scrapbookData.chapters || []).filter(chapter => !chapter.entryId);
     this.entries.forEach(e => {
-      this.autoPlaceEntry(e);
+      this.autoPlaceEntry(e, false);
     });
+    this.defaultEntryPagesGenerated = true;
   }
 
   // -------------------------------------------------------------------
@@ -1528,6 +1547,7 @@ class ScrapbookViewer {
         image.alt = content.title || "Memory photograph";
         image.draggable = false;
         image.className = "polaroid-img";
+        image.style.filter = el.style?.photoFilter || "";
         frame.appendChild(image);
       } else {
         const placeholder = document.createElement("div");

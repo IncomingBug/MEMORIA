@@ -18,7 +18,9 @@ class CreateMemoryWizard {
       followUpQuestions: [],
       followUpAnswers: [],
       title: "",
+      folderTitle: "",
       description: "",
+      musicAtmosphere: "warm",
       music: {},
       geolocation: {},
       tags: []
@@ -116,7 +118,9 @@ class CreateMemoryWizard {
       followUpQuestions: [],
       followUpAnswers: [],
       title: "",
+      folderTitle: "",
       description: "",
+      musicAtmosphere: "warm",
       music: {},
       geolocation: {},
       tags: []
@@ -370,7 +374,7 @@ class CreateMemoryWizard {
                   <img src="${activeMedia.dataUrl}" class="polaroid-img" alt="Memory photo">
                 `}
                 <div style="position: absolute; bottom: 4px; left: 8px; right: 8px;">
-                  <input type="text" id="previewTitleInput" class="form-input" style="font-family: var(--font-script); font-size: 18px; text-align: center; background: transparent; border: none; border-bottom: 1px dashed #c0b0a0; color: #211711;" placeholder="Write a title here..." value="${activeMedia.title || this.state.title}">
+                  <input type="text" id="previewTitleInput" class="form-input" style="font-family: var(--font-script); font-size: 18px; text-align: center; background: transparent; border: none; border-bottom: 1px dashed #c0b0a0; color: #211711;" placeholder="Caption this photo..." value="${activeMedia.title || ""}">
                 </div>
               </div>
 
@@ -387,6 +391,12 @@ class CreateMemoryWizard {
 
             <!-- Right: Context Controls -->
             <div style="display: flex; flex-direction: column; gap: 16px;">
+              <div class="form-group">
+                <label class="form-label" for="memoryFolderTitleInput">Day folder title</label>
+                <input type="text" id="memoryFolderTitleInput" class="form-input" maxlength="80" placeholder="A short title will be suggested from your story">
+                <small style="color: var(--muted);">Leave blank to create a title from your description.</small>
+              </div>
+
               <div class="form-group">
                 <label class="form-label" for="previewDescInput">Description</label>
                 <textarea id="previewDescInput" class="form-textarea" style="min-height: 90px;">${this.state.description}</textarea>
@@ -416,6 +426,18 @@ class CreateMemoryWizard {
                 </div>
 
                 <div id="musicSearchResults" style="display: flex; flex-direction: column; gap: 4px; max-height: 140px; overflow-y: auto; margin-top: 6px;"></div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="musicAtmosphereSelect">What does the song feel like?</label>
+                <select id="musicAtmosphereSelect" class="form-select">
+                  <option value="quiet">Quiet and spacious</option>
+                  <option value="warm">Warm and nostalgic</option>
+                  <option value="bright">Bright and playful</option>
+                  <option value="dreamy">Dreamy and soft</option>
+                  <option value="restless">Restless and energetic</option>
+                </select>
+                <small style="color: var(--muted);">This choice shapes the page's color, type, and composition.</small>
               </div>
 
               <!-- Geolocation -->
@@ -465,14 +487,30 @@ class CreateMemoryWizard {
       const titleInput = document.getElementById("previewTitleInput");
       titleInput?.addEventListener("input", (e) => {
         const val = e.target.value;
-        this.state.title = val;
         if (this.state.media[this.state.currentMediaIndex]) {
           this.state.media[this.state.currentMediaIndex].title = val;
         }
       });
 
+      const folderTitleInput = document.getElementById("memoryFolderTitleInput");
+      if (folderTitleInput) {
+        folderTitleInput.value = this.state.folderTitle;
+        folderTitleInput.placeholder = Utils.generateMemoryTitle(this.state.description, this.state.date);
+        folderTitleInput.addEventListener("input", event => {
+          this.state.folderTitle = event.target.value;
+        });
+      }
+
       const descInput = document.getElementById("previewDescInput");
       descInput?.addEventListener("input", (e) => this.state.description = e.target.value);
+
+      const musicAtmosphereSelect = document.getElementById("musicAtmosphereSelect");
+      if (musicAtmosphereSelect) {
+        musicAtmosphereSelect.value = this.state.musicAtmosphere;
+        musicAtmosphereSelect.addEventListener("change", event => {
+          this.state.musicAtmosphere = event.target.value;
+        });
+      }
 
       const geoInput = document.getElementById("geolocationInput");
       geoInput?.addEventListener("input", (e) => this.state.geolocation.label = e.target.value);
@@ -958,6 +996,29 @@ class CreateMemoryWizard {
   }
 
   async performSave() {
+    const description = String(this.state.description || "");
+    if (this.flowType === "photo") {
+      if (!description.trim()) {
+        window.app.showToast("Write a few words about the day before saving.");
+        return;
+      }
+      if (!this.state.media.some(item => item.type === "image" || item.type === "gif")) {
+        window.app.showToast("Add at least one photo to the day's memory.");
+        return;
+      }
+      let musicUrl;
+      try {
+        musicUrl = new URL(this.state.music.link);
+      } catch {
+        window.app.showToast("Choose a song or add a valid music link.");
+        return;
+      }
+      if (!this.state.music.title || !["http:", "https:"].includes(musicUrl.protocol)) {
+        window.app.showToast("Choose a song or add a valid music link.");
+        return;
+      }
+    }
+
     window.app.showToast("Saving memory...");
 
     try {
@@ -972,11 +1033,11 @@ class CreateMemoryWizard {
         date: this.state.date,
         time: this.state.time,
         mood: this.state.mood,
-        title: this.state.title || (this.state.media[0]?.title || "A Beautiful Day"),
-        description: this.state.description,
+        title: String(this.state.folderTitle || "").trim() || String(this.state.title || "").trim() || Utils.generateMemoryTitle(description, this.state.date),
+        description,
         followUpAnswers: this.state.followUpAnswers.filter(a => a && a.answer),
         tags: this.state.tags,
-        music: this.state.music,
+        music: { ...this.state.music, atmosphere: this.state.musicAtmosphere },
         geolocation: this.state.geolocation,
         filter: this.state.filter,
         media: uploadedMedia

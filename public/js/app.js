@@ -94,8 +94,16 @@ class MemoriaApp {
       window.scrapbookViewer.open();
     });
 
-    document.getElementById("homeClosedBookCover")?.addEventListener("click", () => {
+    const closedBookCover = document.getElementById("homeClosedBookCover");
+    const openScrapbook = () => {
       window.scrapbookViewer.open();
+    };
+    closedBookCover?.addEventListener("click", openScrapbook);
+    closedBookCover?.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openScrapbook();
+      }
     });
 
     document.getElementById("homeViewAllEntriesBtn")?.addEventListener("click", () => {

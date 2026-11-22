@@ -39,6 +39,11 @@
     0 36px 80px rgba(0, 0, 0, 0.95);
 }
 
+.closed-book-cover:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 4px;
+}
+
 .book-spine-stitch {
   position: absolute;
   left: 32px;

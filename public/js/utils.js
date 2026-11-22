@@ -1,5 +1,9 @@
 // Utility functions for MEMORIA v2
 
+const titleStopWords = new Set(
+  "a an and are as at be been but by for from had has have he her i in into is it its me my of on or our she that the their them there they this through to up was we were with you your я мы ты он она оно они это этот эта эти и а но или в во на под за из к ко от до у по с со как что чтобы был была были быть мне мой моя моё мои наш наша наше наши его ее её их день сегодня очень там тут тогда потом уже".split(" ")
+);
+
 const Utils = {
   // Deterministic PRNG using seed for messy aesthetic stability
   seededRandom(seed) {
@@ -14,6 +18,107 @@ const Utils = {
   getMessyRotation(seed) {
     const rng = Utils.seededRandom(seed);
     return Math.round((rng() * 8 - 4) * 10) / 10;
+  },
+
+  generateMemoryTitle(text, date) {
+    const words = String(text || "")
+      .normalize("NFKC")
+      .replace(/https?:\/\/\S+/gi, "")
+      .match(/[\p{L}\p{N}]+(?:[-'][\p{L}\p{N}]+)*/gu) || [];
+    const titleWords = [];
+    const seen = new Set();
+    for (const word of words) {
+      const normalized = word.toLocaleLowerCase();
+      if (normalized.length < 3 || titleStopWords.has(normalized) || seen.has(normalized)) continue;
+      titleWords.push(word);
+      seen.add(normalized);
+      if (titleWords.length === 5) break;
+    }
+
+    if (titleWords.length < 3) {
+      const parsedDate = date ? new Date(`${date}T00:00:00`) : new Date();
+      const month = Number.isNaN(parsedDate.getTime())
+        ? "Daily"
+        : parsedDate.toLocaleString("en-US", { month: "long" });
+      for (const word of [month, "Day", "Memory"]) {
+        if (titleWords.length === 5) break;
+        if (!seen.has(word.toLocaleLowerCase())) {
+          titleWords.push(word);
+          seen.add(word.toLocaleLowerCase());
+        }
+      }
+    }
+
+    return titleWords.slice(0, 5)
+      .map(word => word.charAt(0).toLocaleUpperCase() + word.slice(1))
+      .join(" ");
+  },
+
+  getMemoryAtmosphere(mood, soundtrackMood, photoFilter) {
+    const paperColors = {
+      1: "#e5eaf0",
+      2: "#e9efec",
+      3: "#f1efe6",
+      4: "#f8eedb",
+      5: "#f7e4d7"
+    };
+    const soundtrackStyles = {
+      quiet: {
+        noteColor: "#dce7e5",
+        font: "Cormorant Garamond",
+        rotationScale: 0.35,
+        photoFilter: "saturate(.78) brightness(1.02)",
+        layout: { photoX: 9, photoY: 8, noteX: 52, noteY: 43, musicX: 8, musicY: 73, photoWidth: 40 }
+      },
+      warm: {
+        noteColor: "#f4dfbb",
+        font: "Caveat",
+        rotationScale: 0.7,
+        photoFilter: "sepia(.12) saturate(1.08)",
+        layout: { photoX: 7, photoY: 8, noteX: 51, noteY: 43, musicX: 7, musicY: 73, photoWidth: 42 }
+      },
+      bright: {
+        noteColor: "#f7e8a4",
+        font: "DM Sans",
+        rotationScale: 1.15,
+        photoFilter: "saturate(1.16) contrast(1.03)",
+        layout: { photoX: 6, photoY: 6, noteX: 50, noteY: 46, musicX: 10, musicY: 75, photoWidth: 44 }
+      },
+      dreamy: {
+        noteColor: "#e8def2",
+        font: "Playfair Display",
+        rotationScale: 0.5,
+        photoFilter: "saturate(.84) brightness(1.04)",
+        layout: { photoX: 8, photoY: 9, noteX: 51, noteY: 44, musicX: 8, musicY: 74, photoWidth: 40 }
+      },
+      restless: {
+        noteColor: "#f0d1c5",
+        font: "DM Sans",
+        rotationScale: 1.5,
+        photoFilter: "contrast(1.12) saturate(1.08)",
+        layout: { photoX: 9, photoY: 6, noteX: 48, noteY: 45, musicX: 11, musicY: 74, photoWidth: 44 }
+      }
+    };
+    const userPhotoFilters = {
+      warm: "sepia(.3) saturate(1.15)",
+      vintage: "sepia(.4) contrast(.92)",
+      bw: "grayscale(1)",
+      faded: "saturate(.65) contrast(.88)",
+      dramatic: "contrast(1.2) saturate(1.15)"
+    };
+    const numericMood = Math.min(5, Math.max(1, Math.round(Number(mood) || 3)));
+    const defaultSoundtrackMood = numericMood <= 2 ? "quiet" : numericMood === 3 ? "dreamy" : numericMood === 4 ? "warm" : "bright";
+    const selectedSoundtrackMood = Object.prototype.hasOwnProperty.call(soundtrackStyles, soundtrackMood)
+      ? soundtrackMood
+      : defaultSoundtrackMood;
+
+    return {
+      mood: numericMood,
+      soundtrackMood: selectedSoundtrackMood,
+      paperColor: paperColors[numericMood],
+      ...soundtrackStyles[selectedSoundtrackMood],
+      photoFilter: userPhotoFilters[photoFilter] || soundtrackStyles[selectedSoundtrackMood].photoFilter
+    };
   },
 
   // Average mood calculation strictly following specifications:

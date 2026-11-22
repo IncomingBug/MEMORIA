@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MEMORIA v2 — Digital Scrapbook & Memory Journal</title>
+  <meta name="description" content="Create a personal digital scrapbook filled with photos, reflections, music, and memories.">
 
   <!-- Google Fonts: Cormorant Garamond, DM Sans, Caveat, Playfair Display -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -42,7 +43,7 @@
       </p>
 
       <!-- Closed Scrapbook Cover (Click opens with eased zoom) -->
-      <div class="closed-book-cover" id="homeClosedBookCover" title="Click to open your scrapbook">
+      <div class="closed-book-cover" id="homeClosedBookCover" role="button" tabindex="0" aria-label="Open your scrapbook" title="Click to open your scrapbook">
         <div class="book-spine-stitch"></div>
         <div class="cover-corner-brass corner-tl"></div>
         <div class="cover-corner-brass corner-tr"></div>
@@ -94,7 +95,7 @@
 
   <!-- Open Scrapbook Stage (Large & Zoomed-In) -->
   <div id="bookStage" class="book-stage" hidden>
-    <!-- Floating Show UI Button (Point 10) -->
+    <!-- Button shown when the book controls are hidden -->
     <button type="button" id="floatingShowUiBtn" class="floating-show-ui-btn" hidden>
       👁️ Show UI
     </button>
@@ -126,10 +127,8 @@
     <div class="stage-center">
       <button type="button" class="page-nav-btn nav-prev" id="bookPrevBtn" title="Previous page">‹</button>
       
-      <!-- Open Book Spread Shell with Realistic Center Rings -->
+      <!-- Open book spread shell -->
       <div class="spread-book-wrapper">
-      <!-- REMOVE SPREAD RINGS BRO we do notneed that eww-->
-
         <div id="flipBookContainer" class="flip-book-wrapper">
           <!-- Spreads loaded dynamically by ScrapbookViewer -->
         </div>
@@ -139,7 +138,7 @@
     </div>
   </div>
 
-  <!-- Canva-Style Bottom Scrapbook Editor Toolbar with Active Inspector (Point 4) -->
+  <!-- Scrapbook editor toolbar and active element inspector -->
   <div id="editorBottomPanel" class="editor-bottom-panel collapsed">
     <div class="editor-toolbar-header">
       <div class="editor-mode-badge">
@@ -156,7 +155,7 @@
       </div>
     </div>
 
-    <!-- Active Block Inspector Bar (Live title, text, font, font-size, color) -->
+    <!-- Inspector controls update the selected element -->
     <div class="editor-inspector-bar" id="editorInspectorBar">
       <div class="inspector-group" style="flex: 1; min-width: 180px;">
         <span class="inspector-label">Title / Text:</span>
@@ -211,7 +210,7 @@
       </div>
     </div>
 
-    <!-- Draggable Elements Tray (Point 1: Drag & Drop directly onto pages) -->
+    <!-- Draggable elements tray -->
     <div class="editor-elements-tray">
       <div class="palette-item" data-type="polaroid" title="Drag and drop onto page">
         <span class="palette-item-icon">📸</span>
