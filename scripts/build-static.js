@@ -35,6 +35,14 @@ for (const asset of rootAssets) {
   }
 }
 
+const buildVersion = (process.env.GITHUB_SHA || Date.now().toString(36)).slice(0, 12);
+const indexPath = path.join(output, "index.html");
+const indexHtml = fs.readFileSync(indexPath, "utf8").replace(
+  /((?:src|href)=")(?!https?:|\/\/)([^"]+\.(?:css|js))"/g,
+  (_, attribute, asset) => `${attribute}${asset}?v=${buildVersion}"`
+);
+fs.writeFileSync(indexPath, indexHtml);
+
 // GitHub Pages no-jekyll marker
 fs.writeFileSync(path.join(output, ".nojekyll"), "");
 console.log(`Static MEMORIA v2 bundle created successfully in ${path.relative(root, output)}.`);
