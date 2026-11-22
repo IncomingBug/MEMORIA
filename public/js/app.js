@@ -44,15 +44,20 @@ class MemoriaApp {
   }
 
   updateFullscreenButton() {
-    const button = document.getElementById("homeFullscreenBtn");
-    if (!button) return;
+    const buttons = [
+      document.getElementById("homeFullscreenBtn"),
+      document.getElementById("bookFullscreenBtn")
+    ].filter(Boolean);
+    if (buttons.length === 0) return;
     const isFullscreen = Boolean(document.fullscreenElement);
     const label = isFullscreen ? "Exit fullscreen" : "Fullscreen";
-    button.setAttribute("aria-label", isFullscreen ? "Exit fullscreen" : "Enter fullscreen");
-    button.setAttribute("aria-pressed", String(isFullscreen));
-    button.title = isFullscreen ? "Exit fullscreen" : "Enter fullscreen";
-    const text = button.querySelector(".fullscreen-button-label");
-    if (text) text.textContent = label;
+    buttons.forEach(button => {
+      button.setAttribute("aria-label", isFullscreen ? "Exit fullscreen" : "Enter fullscreen");
+      button.setAttribute("aria-pressed", String(isFullscreen));
+      button.title = isFullscreen ? "Exit fullscreen" : "Enter fullscreen";
+      const text = button.querySelector(".fullscreen-button-label");
+      if (text) text.textContent = label;
+    });
   }
 
   async toggleFullscreen() {
@@ -162,8 +167,10 @@ class MemoriaApp {
       this.renderFirebaseAuth();
     });
 
-    document.getElementById("homeFullscreenBtn")?.addEventListener("click", () => {
-      this.toggleFullscreen();
+    ["homeFullscreenBtn", "bookFullscreenBtn"].forEach(buttonId => {
+      document.getElementById(buttonId)?.addEventListener("click", () => {
+        this.toggleFullscreen();
+      });
     });
     document.addEventListener("fullscreenchange", () => this.updateFullscreenButton());
     this.updateFullscreenButton();

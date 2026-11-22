@@ -2,17 +2,24 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const documentListeners = {};
-const buttonAttributes = {};
-const label = { textContent: "" };
-const button = {
-  title: "",
-  setAttribute(name, value) {
-    buttonAttributes[name] = value;
-  },
-  querySelector(selector) {
-    return selector === ".fullscreen-button-label" ? label : null;
-  }
+const buttonAttributes = {
+  homeFullscreenBtn: {},
+  bookFullscreenBtn: {}
 };
+const buttonLabels = {};
+const buttons = Object.fromEntries(Object.keys(buttonAttributes).map(id => {
+  const label = { textContent: "" };
+  buttonLabels[id] = label;
+  return [id, {
+    title: "",
+    setAttribute(name, value) {
+      buttonAttributes[id][name] = value;
+    },
+    querySelector(selector) {
+      return selector === ".fullscreen-button-label" ? label : null;
+    }
+  }];
+}));
 
 global.document = {
   fullscreenElement: null,
@@ -26,7 +33,7 @@ global.document = {
     documentListeners[type] = listener;
   },
   getElementById(id) {
-    return id === "homeFullscreenBtn" ? button : null;
+    return buttons[id] || null;
   }
 };
 global.window = {
@@ -45,9 +52,11 @@ test("fullscreen navbar button enters and exits fullscreen and tracks browser st
   assert.equal(global.document.fullscreenElement, global.document.documentElement);
 
   app.updateFullscreenButton();
-  assert.equal(buttonAttributes["aria-pressed"], "true");
-  assert.equal(buttonAttributes["aria-label"], "Exit fullscreen");
-  assert.equal(label.textContent, "Exit fullscreen");
+  assert.equal(buttonAttributes.homeFullscreenBtn["aria-pressed"], "true");
+  assert.equal(buttonAttributes.homeFullscreenBtn["aria-label"], "Exit fullscreen");
+  assert.equal(buttonAttributes.bookFullscreenBtn["aria-label"], "Exit fullscreen");
+  assert.equal(buttonLabels.homeFullscreenBtn.textContent, "Exit fullscreen");
+  assert.equal(buttonLabels.bookFullscreenBtn.textContent, "Exit fullscreen");
 
   global.document.exitFullscreen = () => {
     global.document.fullscreenElement = null;
@@ -56,8 +65,9 @@ test("fullscreen navbar button enters and exits fullscreen and tracks browser st
   await app.toggleFullscreen();
   app.updateFullscreenButton();
   assert.equal(global.document.fullscreenElement, null);
-  assert.equal(buttonAttributes["aria-pressed"], "false");
-  assert.equal(buttonAttributes["aria-label"], "Enter fullscreen");
+  assert.equal(buttonAttributes.homeFullscreenBtn["aria-pressed"], "false");
+  assert.equal(buttonAttributes.bookFullscreenBtn["aria-pressed"], "false");
+  assert.equal(buttonAttributes.bookFullscreenBtn["aria-label"], "Enter fullscreen");
 });
 
 test("fullscreen reports unsupported browsers instead of failing silently", async () => {
