@@ -19,6 +19,8 @@ class ScrapbookViewer {
     this.currentPageIndex = 0;
     this.defaultEntryPagesGenerated = false;
     this.startView = "overview";
+    this.activeMusicPlayerModal = null;
+    this.activeMusicPlayerKeyHandler = null;
 
     this.init();
   }
@@ -113,6 +115,7 @@ class ScrapbookViewer {
   close() {
     if (this.isClosing || !this.stageEl || this.stageEl.hidden) return;
     this.isClosing = true;
+    this.closeYouTubePlayer();
     window.scrapbookEditor?.close();
     this.stageEl.style.transition = "transform 0.42s cubic-bezier(0.6, 0, 0.8, 0.2), opacity 0.38s ease";
     this.stageEl.style.transform = "scale(0.88)";
@@ -134,6 +137,7 @@ class ScrapbookViewer {
   }
 
   cleanContainerAndBuild() {
+    this.closeYouTubePlayer();
     if (this.pageFlip) {
       this.currentPageIndex = this.pageFlip.getCurrentPageIndex();
       try { this.pageFlip.destroy(); } catch {}
@@ -520,7 +524,9 @@ class ScrapbookViewer {
 
       this.pageFlip.loadFromHTML(document.querySelectorAll(".book-page"));
       this.pageFlip.on("flip", (event) => {
-        this.currentPageIndex = Number(event.data) || 0;
+        const nextPageIndex = Number(event.data) || 0;
+        if (nextPageIndex !== this.currentPageIndex) this.closeYouTubePlayer();
+        this.currentPageIndex = nextPageIndex;
         this.clampRotatedPageElements();
       });
       requestAnimationFrame(() => this.clampRotatedPageElements());
@@ -747,6 +753,107 @@ class ScrapbookViewer {
     controls.hidden = false;
     showSlide(0);
     setPlaying(true);
+  }
+
+  getYouTubeVideoId(content = {}) {
+    const isValidId = id => /^[A-Za-z0-9_-]{11}$/.test(String(id || ""));
+    if (isValidId(content.videoId)) return content.videoId;
+
+    for (const candidate of [content.embedUrl, content.link]) {
+      if (!candidate) continue;
+      try {
+        const url = new URL(candidate, window.location.origin);
+        const hostname = url.hostname.toLowerCase();
+        let id = "";
+        if (hostname === "youtu.be") {
+          id = url.pathname.split("/").filter(Boolean)[0] || "";
+        } else if ([
+          "youtube.com",
+          "www.youtube.com",
+          "m.youtube.com",
+          "music.youtube.com",
+          "youtube-nocookie.com",
+          "www.youtube-nocookie.com"
+        ].includes(hostname)) {
+          id = url.searchParams.get("v") ||
+            url.pathname.match(/^\/(?:embed|shorts|live)\/([^/?]+)/)?.[1] ||
+            "";
+        }
+        if (isValidId(id)) return id;
+      } catch {
+        continue;
+      }
+    }
+
+    return "";
+  }
+
+  openYouTubePlayer(content = {}) {
+    const videoId = this.getYouTubeVideoId(content);
+    if (!videoId) {
+      window.app?.showToast?.("This YouTube video can't be played here.");
+      return;
+    }
+    this.closeYouTubePlayer();
+
+    const modal = document.createElement("div");
+    modal.className = "music-player-modal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-label", `Play ${content.title || "YouTube video"}`);
+
+    const dialog = document.createElement("section");
+    dialog.className = "music-player-dialog";
+    const header = document.createElement("header");
+    header.className = "music-player-header";
+    const title = document.createElement("h2");
+    title.textContent = content.title || "Music video";
+    const closeButton = document.createElement("button");
+    closeButton.type = "button";
+    closeButton.className = "music-player-close";
+    closeButton.setAttribute("aria-label", "Close video player");
+    closeButton.textContent = "×";
+    header.append(title, closeButton);
+
+    const frame = document.createElement("div");
+    frame.className = "music-player-frame";
+    const iframe = document.createElement("iframe");
+    iframe.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}?autoplay=1&playsinline=1&rel=0`;
+    iframe.title = `Play ${content.title || "YouTube video"}`;
+    iframe.allow = "autoplay; encrypted-media; picture-in-picture; web-share";
+    iframe.allowFullscreen = true;
+    frame.appendChild(iframe);
+    dialog.append(header, frame);
+    modal.appendChild(dialog);
+
+    const close = () => this.closeYouTubePlayer();
+    closeButton.addEventListener("click", close);
+    modal.addEventListener("click", event => {
+      if (event.target === modal) close();
+    });
+    this.activeMusicPlayerKeyHandler = event => {
+      if (event.key === "Escape") close();
+    };
+    document.addEventListener("keydown", this.activeMusicPlayerKeyHandler);
+    this.activeMusicPlayerModal = modal;
+    document.body.appendChild(modal);
+    closeButton.focus();
+  }
+
+  closeYouTubePlayer() {
+    const modal = this.activeMusicPlayerModal;
+    if (!modal) return;
+    if (this.activeMusicPlayerKeyHandler) {
+      document.removeEventListener("keydown", this.activeMusicPlayerKeyHandler);
+      this.activeMusicPlayerKeyHandler = null;
+    }
+    const iframe = modal.querySelector("iframe");
+    if (iframe) {
+      iframe.src = "about:blank";
+      iframe.remove();
+    }
+    modal.remove();
+    this.activeMusicPlayerModal = null;
   }
 
   // -------------------------------------------------------------------
@@ -1853,18 +1960,63 @@ class ScrapbookViewer {
 
     } else if (el.type === "music") {
       const content = el.content || {};
-      const player = content.previewUrl
-        ? `<audio controls preload="none" src="${content.previewUrl}" aria-label="Play ${content.title || "selected track"}"></audio>`
-        : content.embedUrl || content.videoId
-          ? `<iframe src="${content.embedUrl || `https://www.youtube-nocookie.com/embed/${encodeURIComponent(content.videoId)}`}" title="Play ${content.title || "selected track"}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`
-          : "";
-      div.innerHTML += `
-        <div class="music-sticker music-sticker-player" style="width: 100%; background-color: ${el.style?.bgColor || '#2b2221'};">
-          <div class="music-sticker-heading"><span>${content.provider === 'youtube' ? '▶' : '🎵'}</span><span>${content.title || "Music"} - ${content.artist || ""}</span></div>
-          ${player}
-          <a href="${content.link || '#'}" target="_blank" rel="noopener noreferrer">Open on ${content.provider === "youtube" ? "YouTube" : content.provider === "apple" ? "Apple Music" : "music service"}</a>
-        </div>
-      `;
+      const videoId = this.getYouTubeVideoId(content);
+      const isYouTube = content.provider === "youtube" || Boolean(videoId);
+      const sticker = document.createElement("div");
+      sticker.className = `music-sticker music-sticker-player${isYouTube ? " music-sticker-youtube" : ""}`;
+      sticker.style.width = "100%";
+      sticker.style.backgroundColor = el.style?.bgColor || "#2b2221";
+
+      const heading = document.createElement("div");
+      heading.className = "music-sticker-heading";
+      const icon = document.createElement("span");
+      icon.textContent = isYouTube ? "▶" : "🎵";
+      const label = document.createElement("span");
+      label.textContent = `${content.title || "Music"}${content.artist ? ` - ${content.artist}` : ""}`;
+      heading.append(icon, label);
+      sticker.appendChild(heading);
+
+      if (isYouTube && videoId) {
+        const playButton = document.createElement("button");
+        playButton.type = "button";
+        playButton.className = "music-sticker-play";
+        playButton.textContent = "▶ Play video here";
+        playButton.addEventListener("click", event => {
+          event.preventDefault();
+          event.stopPropagation();
+          this.openYouTubePlayer(content);
+        });
+        sticker.appendChild(playButton);
+      } else if (isYouTube) {
+        const unavailable = document.createElement("span");
+        unavailable.className = "music-sticker-unavailable";
+        unavailable.textContent = "This video link can't be played here.";
+        sticker.appendChild(unavailable);
+      } else if (!isYouTube && content.previewUrl) {
+        const audio = document.createElement("audio");
+        audio.controls = true;
+        audio.preload = "none";
+        audio.src = content.previewUrl;
+        audio.setAttribute("aria-label", `Play ${content.title || "selected track"}`);
+        sticker.appendChild(audio);
+      } else if (!isYouTube && content.embedUrl) {
+        const iframe = document.createElement("iframe");
+        iframe.src = content.embedUrl;
+        iframe.title = `Play ${content.title || "selected track"}`;
+        iframe.allow = "autoplay; encrypted-media; picture-in-picture";
+        iframe.allowFullscreen = true;
+        sticker.appendChild(iframe);
+      }
+
+      if (!isYouTube && content.link) {
+        const link = document.createElement("a");
+        link.href = content.link;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = `Open on ${content.provider === "apple" ? "Apple Music" : "music service"}`;
+        sticker.appendChild(link);
+      }
+      div.appendChild(sticker);
 
     } else if (el.type === "text") {
       const textContent = String(el.content?.text || "")

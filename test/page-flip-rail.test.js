@@ -5,14 +5,18 @@ let pageFlipOptions;
 global.window = {
   innerWidth: 1280,
   innerHeight: 900,
+  location: { origin: "https://example.test" },
   scrapbookEditor: { isOpen: false },
   St: {
     PageFlip: class {
       constructor(element, options) {
         pageFlipOptions = options;
+        this.listeners = {};
       }
       loadFromHTML() {}
-      on() {}
+      on(event, listener) {
+        this.listeners[event] = listener;
+      }
     }
   }
 };
@@ -87,4 +91,27 @@ test("only a pointer gesture that starts on a page rail flips pages", () => {
   listeners.pointerdown(event(rail));
   listeners.pointerup(event(rail));
   assert.equal(viewer.pageFlip.flips, 1);
+});
+
+test("YouTube IDs are extracted only from supported YouTube URL formats", () => {
+  const viewer = makeViewer();
+  assert.equal(viewer.getYouTubeVideoId({ videoId: "dQw4w9WgXcQ" }), "dQw4w9WgXcQ");
+  assert.equal(viewer.getYouTubeVideoId({ link: "https://youtu.be/dQw4w9WgXcQ?t=4" }), "dQw4w9WgXcQ");
+  assert.equal(viewer.getYouTubeVideoId({ link: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" }), "dQw4w9WgXcQ");
+  assert.equal(viewer.getYouTubeVideoId({ embedUrl: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ" }), "dQw4w9WgXcQ");
+  assert.equal(viewer.getYouTubeVideoId({ link: "https://example.com/watch?v=dQw4w9WgXcQ" }), "");
+});
+
+test("changing scrapbook pages closes the inline YouTube player", () => {
+  const viewer = makeViewer();
+  let closeCount = 0;
+  viewer.closeYouTubePlayer = () => { closeCount++; };
+  viewer.initPageFlip();
+
+  viewer.pageFlip.listeners.flip({ data: 2 });
+  assert.equal(closeCount, 1);
+  assert.equal(viewer.currentPageIndex, 2);
+
+  viewer.pageFlip.listeners.flip({ data: 2 });
+  assert.equal(closeCount, 1);
 });

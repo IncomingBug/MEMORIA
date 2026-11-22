@@ -976,6 +976,40 @@
   overflow: hidden;
 }
 
+.music-sticker-youtube {
+  justify-content: center;
+  gap: 12px;
+}
+
+.music-sticker-play {
+  align-self: flex-start;
+  padding: 8px 12px;
+  border: 1px solid #d9b46f;
+  border-radius: 4px;
+  background: #d9b46f;
+  color: #24170d;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.28);
+}
+
+.music-sticker-play:hover {
+  background: #f0cd88;
+  border-color: #fff0cf;
+}
+
+.music-sticker-unavailable {
+  color: #f0cd88;
+  font-size: 11px;
+}
+
+.music-sticker-play:focus-visible,
+.music-player-close:focus-visible {
+  outline: 3px solid #fff0cf;
+  outline-offset: 3px;
+}
+
 .music-sticker-heading {
   display: flex;
   align-items: center;
@@ -997,6 +1031,74 @@
   color: var(--gold);
   font-size: 11px;
   overflow-wrap: anywhere;
+}
+
+.music-player-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(8, 6, 8, 0.88);
+  backdrop-filter: blur(8px);
+}
+
+.music-player-dialog {
+  width: min(640px, 100%);
+  overflow: hidden;
+  border: 1px solid var(--gold);
+  border-radius: 8px;
+  background: #181214;
+  color: var(--cream);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.65);
+}
+
+.music-player-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 14px 10px 18px;
+}
+
+.music-player-header h2 {
+  overflow: hidden;
+  margin: 0;
+  color: var(--cream);
+  font-family: var(--font-serif);
+  font-size: 17px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.music-player-close {
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--gold);
+  border-radius: 50%;
+  background: #30221a;
+  color: var(--cream);
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.music-player-close:hover {
+  background: #60411f;
+}
+
+.music-player-frame {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+}
+
+.music-player-frame iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
 }
 
 /* Social Embed Card (Instagram & TikTok - Point 8) */
