@@ -18,6 +18,7 @@ class ScrapbookViewer {
     this.isOpening = false;
     this.currentPageIndex = 0;
     this.defaultEntryPagesGenerated = false;
+    this.startView = "overview";
 
     this.init();
   }
@@ -86,6 +87,7 @@ class ScrapbookViewer {
     this.isOpening = true;
     this.isClosing = false;
     this.currentPageIndex = 0;
+    this.startView = "overview";
     this.uiHidden = false;
     document.getElementById("bookTopNavbar")?.classList.remove("hidden-ui");
     const floatingButton = document.getElementById("floatingShowUiBtn");
@@ -272,35 +274,39 @@ class ScrapbookViewer {
     if (!container) return;
     container.innerHTML = "";
 
-    // 1. Overview Spread (Pages 0 & 1)
-    const pOverviewL = this.createOverviewLeftPage();
-    const pOverviewR = this.createOverviewRightPage();
-    container.appendChild(pOverviewL);
-    container.appendChild(pOverviewR);
+    if (this.startView === "categories") {
+      container.append(this.createCategoriesLeftPage(), this.createCategoriesRightPage());
+    } else if (this.startView === "search") {
+      container.append(this.createSearchLeftPage(), this.createSearchRightPage());
+    } else if (this.startView === "chapters") {
+      container.append(this.createChaptersLeftPage(), this.createChaptersRightPage());
+    } else {
+      container.append(this.createOverviewLeftPage(), this.createOverviewRightPage());
+    }
 
-    // 2. Categories Spread (Pages 2 & 3)
-    const pCatL = this.createCategoriesLeftPage();
-    const pCatR = this.createCategoriesRightPage();
-    container.appendChild(pCatL);
-    container.appendChild(pCatR);
-
-    // 3. Search Spread (Pages 4 & 5)
-    const pSearchL = this.createSearchLeftPage();
-    const pSearchR = this.createSearchRightPage();
-    container.appendChild(pSearchL);
-    container.appendChild(pSearchR);
-
-    // 4. Chapters Spread (Pages 6 & 7)
-    const pChapL = this.createChaptersLeftPage();
-    const pChapR = this.createChaptersRightPage();
-    container.appendChild(pChapL);
-    container.appendChild(pChapR);
-
-    // 5. Entry / Diary Pages (Pages 8+)
+    // User pages start immediately after the opening spread.
     let userPages = this.scrapbookData?.pages || [];
     if (userPages.length === 0 && this.entries.length > 0) {
       this.generateDefaultEntryPages();
       userPages = this.scrapbookData?.pages || [];
+    }
+    if (userPages.length === 0) {
+      userPages = [
+        {
+          id: "page-empty-left",
+          kind: "empty",
+          side: "left",
+          paper: { color: "#f8f3e8", lining: "none", width: 530, height: 710 },
+          elements: []
+        },
+        {
+          id: "page-empty-right",
+          kind: "empty",
+          side: "right",
+          paper: { color: "#f8f3e8", lining: "none", width: 530, height: 710 },
+          elements: []
+        }
+      ];
     }
     let needsPageSave = this.defaultEntryPagesGenerated;
     this.defaultEntryPagesGenerated = false;
@@ -352,6 +358,19 @@ class ScrapbookViewer {
         const renderedEl = this.renderPageElement(el);
         if (renderedEl) pageEl.appendChild(renderedEl);
       });
+      if (pData.kind === "empty" && idx === 1) {
+        const emptyState = document.createElement("div");
+        emptyState.className = "scrapbook-empty-page-state";
+        emptyState.innerHTML = `
+          <h2>Пока здесь нет воспоминаний</h2>
+          <p>Создай новое воспоминание, и оно появится в твоём альбоме.</p>
+          <button type="button" class="btn-primary">＋ Создать воспоминание</button>
+        `;
+        emptyState.querySelector("button")?.addEventListener("click", () => {
+          window.wizard?.open("photo");
+        });
+        pageEl.appendChild(emptyState);
+      }
 
       // Drag and drop listeners on entry page (Point 1 & Point 2)
       this.setupPageDropHandlers(pageEl);
@@ -475,7 +494,7 @@ class ScrapbookViewer {
         : Math.min(530, Math.floor((window.innerWidth - 60) / 2));
       const editorReserve = window.scrapbookEditor?.isOpen ? 254 : 24;
       const availableHeight = Math.max(480, window.innerHeight - 54 - editorReserve);
-      const userPageIndex = Math.max(0, this.currentPageIndex - 8);
+      const userPageIndex = Math.max(0, this.currentPageIndex - 2);
       const currentPaperHeight = this.scrapbookData?.pages?.[userPageIndex]?.paper?.height || 710;
       const height = Math.min(isMobile ? 680 : 780, availableHeight, currentPaperHeight);
 
@@ -606,9 +625,9 @@ class ScrapbookViewer {
     `;
 
     page.querySelector("#navRecentBtn")?.addEventListener("click", () => this.jumpToRecent());
-    page.querySelector("#navCategoriesBtn")?.addEventListener("click", () => this.flipToPage(2));
-    page.querySelector("#navSearchBtn")?.addEventListener("click", () => this.flipToPage(4));
-    page.querySelector("#navChaptersBtn")?.addEventListener("click", () => this.flipToPage(6));
+    page.querySelector("#navCategoriesBtn")?.addEventListener("click", () => this.showStartView("categories"));
+    page.querySelector("#navSearchBtn")?.addEventListener("click", () => this.showStartView("search"));
+    page.querySelector("#navChaptersBtn")?.addEventListener("click", () => this.showStartView("chapters"));
     page.querySelector("#navAllEntriesBtn")?.addEventListener("click", () => window.app.openGalleryModal());
 
     return page;
@@ -629,8 +648,9 @@ class ScrapbookViewer {
     const page = document.createElement("div");
     page.className = "book-page page-left";
     page.innerHTML = `
-      <div style="border-bottom: 2px solid var(--brown); padding-bottom: 8px; margin-bottom: 18px;">
+      <div class="start-view-heading">
         <h2 style="font-family: var(--font-serif); font-size: 28px; color: var(--brown);">Categories</h2>
+        <button type="button" class="btn-secondary start-view-back">← На главную</button>
       </div>
 
       <p style="font-size: 13px; color: #554; margin-bottom: 12px;">Sort it by:</p>
@@ -648,10 +668,10 @@ class ScrapbookViewer {
     page.querySelectorAll(".sort-tab-btn").forEach(btn => {
       btn.addEventListener("click", () => {
         this.activeSortCategory = btn.dataset.sort;
-        this.cleanContainerAndBuild();
-        this.flipToPage(2);
+        this.showStartView("categories");
       });
     });
+    page.querySelector(".start-view-back")?.addEventListener("click", () => this.showStartView("overview"));
 
     return page;
   }
@@ -869,8 +889,9 @@ class ScrapbookViewer {
     const page = document.createElement("div");
     page.className = "book-page page-left";
     page.innerHTML = `
-      <div style="border-bottom: 2px solid var(--brown); padding-bottom: 8px; margin-bottom: 20px;">
+      <div class="start-view-heading">
         <h2 style="font-family: var(--font-serif); font-size: 28px; color: var(--brown);">Search</h2>
+        <button type="button" class="btn-secondary start-view-back">← На главную</button>
       </div>
 
       <div class="form-group">
@@ -902,6 +923,7 @@ class ScrapbookViewer {
       this.searchQuery = e.target.value.trim().toLowerCase();
       this.refreshSearchRightPage();
     }, 250));
+    page.querySelector(".start-view-back")?.addEventListener("click", () => this.showStartView("overview"));
 
     return page;
   }
@@ -976,8 +998,9 @@ class ScrapbookViewer {
     const page = document.createElement("div");
     page.className = "book-page page-left";
     page.innerHTML = `
-      <div style="border-bottom: 2px solid var(--brown); padding-bottom: 8px; margin-bottom: 18px;">
+      <div class="start-view-heading">
         <h2 style="font-family: var(--font-serif); font-size: 28px; color: var(--brown);">Chapters</h2>
+        <button type="button" class="btn-secondary start-view-back">← На главную</button>
       </div>
 
       <p style="font-size: 13px; color: #554; line-height: 1.5; margin-bottom: 16px;">
@@ -1010,13 +1033,13 @@ class ScrapbookViewer {
       });
       await window.storageAdapter.saveScrapbook(this.scrapbookData);
       window.app.showToast(`Chapter "${name}" created!`);
-      this.cleanContainerAndBuild();
-      this.flipToPage(6);
+      this.showStartView("chapters");
     });
 
     page.querySelector("#chapterNewSpreadBtn")?.addEventListener("click", () => {
       this.newSpread();
     });
+    page.querySelector(".start-view-back")?.addEventListener("click", () => this.showStartView("overview"));
 
     return page;
   }
@@ -1088,8 +1111,7 @@ class ScrapbookViewer {
     if (!chapters || destination < 0 || destination >= chapters.length) return;
     [chapters[index], chapters[destination]] = [chapters[destination], chapters[index]];
     await window.storageAdapter.saveScrapbook(this.scrapbookData);
-    this.cleanContainerAndBuild();
-    this.flipToPage(6);
+    this.showStartView("chapters");
   }
 
   async renameChapterPrompt(chapterId, currentName) {
@@ -1100,8 +1122,7 @@ class ScrapbookViewer {
         ch.name = newName.trim();
         await window.storageAdapter.saveScrapbook(this.scrapbookData);
         window.app.showToast("Chapter renamed.");
-        this.cleanContainerAndBuild();
-        this.flipToPage(6);
+        this.showStartView("chapters");
       }
     }
   }
@@ -1116,8 +1137,7 @@ class ScrapbookViewer {
       ch.pageIds.push(pageId);
     }
     await window.storageAdapter.saveScrapbook(this.scrapbookData);
-    this.cleanContainerAndBuild();
-    this.flipToPage(6);
+    this.showStartView("chapters");
   }
 
   async deleteChapter(index) {
@@ -1125,8 +1145,7 @@ class ScrapbookViewer {
       this.scrapbookData.chapters.splice(index, 1);
       await window.storageAdapter.saveScrapbook(this.scrapbookData);
       window.app.showToast("Chapter removed.");
-      this.cleanContainerAndBuild();
-      this.flipToPage(6);
+      this.showStartView("chapters");
     }
   }
 
@@ -1177,7 +1196,7 @@ class ScrapbookViewer {
 
     // Flip to the newly created spread
     setTimeout(() => {
-      this.flipToPage(8 + targetPageIndex);
+      this.flipToPage(2 + targetPageIndex);
     }, 100);
   }
 
@@ -1390,7 +1409,7 @@ class ScrapbookViewer {
     const pages = this.scrapbookData?.pages || [];
     const pageIndex = pages.findIndex(p => (p.elements || []).some(el => el.entryId === entryId));
     if (pageIndex !== -1) {
-      this.flipToPage(8 + pageIndex);
+      this.flipToPage(2 + pageIndex);
     } else {
       window.app.showToast("Entry is on recent page.");
       this.jumpToRecent();
@@ -1492,7 +1511,14 @@ class ScrapbookViewer {
       });
     }
 
-    if (persist) await window.storageAdapter.saveScrapbook(this.scrapbookData);
+    if (persist) {
+      await window.storageAdapter.saveScrapbook(this.scrapbookData);
+      if (this.stageEl && !this.stageEl.hidden) {
+        this.entries = [...this.entries.filter(item => item.id !== entry.id), entry];
+        this.cleanContainerAndBuild();
+        this.flipToPage(2 + this.scrapbookData.pages.indexOf(targetPage));
+      }
+    }
   }
 
   generateDefaultEntryPages() {
@@ -1665,7 +1691,14 @@ class ScrapbookViewer {
   }
 
   jumpToRecent() {
-    this.flipToPage(8);
+    this.flipToPage(2);
+  }
+
+  showStartView(view) {
+    if (!["overview", "categories", "search", "chapters"].includes(view)) return;
+    this.startView = view;
+    this.currentPageIndex = 0;
+    this.cleanContainerAndBuild();
   }
 
   flipToPage(pageIndex) {
