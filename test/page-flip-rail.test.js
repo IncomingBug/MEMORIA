@@ -100,6 +100,10 @@ test("YouTube IDs are extracted only from supported YouTube URL formats", () => 
   assert.equal(viewer.getYouTubeVideoId({ link: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" }), "dQw4w9WgXcQ");
   assert.equal(viewer.getYouTubeVideoId({ embedUrl: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ" }), "dQw4w9WgXcQ");
   assert.equal(viewer.getYouTubeVideoId({ link: "https://example.com/watch?v=dQw4w9WgXcQ" }), "");
+  assert.equal(
+    viewer.getYouTubeSearchUrl({ title: "evening walk", artist: "YouTube Video" }),
+    "https://www.youtube.com/results?search_query=evening%20walk"
+  );
 });
 
 test("changing scrapbook pages closes the inline YouTube player", () => {

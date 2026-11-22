@@ -788,6 +788,12 @@ class ScrapbookViewer {
     return "";
   }
 
+  getYouTubeSearchUrl(content = {}) {
+    const artist = content.artist === "YouTube Video" ? "" : content.artist;
+    const term = [content.title, artist].filter(Boolean).join(" ").trim();
+    return `https://www.youtube.com/results?search_query=${encodeURIComponent(term)}`;
+  }
+
   openYouTubePlayer(content = {}) {
     const videoId = this.getYouTubeVideoId(content);
     if (!videoId) {
@@ -1990,8 +1996,15 @@ class ScrapbookViewer {
       } else if (isYouTube) {
         const unavailable = document.createElement("span");
         unavailable.className = "music-sticker-unavailable";
-        unavailable.textContent = "This video link can't be played here.";
+        unavailable.textContent = "No embeddable video was saved.";
         sticker.appendChild(unavailable);
+        const searchLink = document.createElement("a");
+        searchLink.className = "music-sticker-fallback-link";
+        searchLink.href = this.getYouTubeSearchUrl(content);
+        searchLink.target = "_blank";
+        searchLink.rel = "noopener noreferrer";
+        searchLink.textContent = "Search on YouTube";
+        sticker.appendChild(searchLink);
       } else if (!isYouTube && content.previewUrl) {
         const audio = document.createElement("audio");
         audio.controls = true;
