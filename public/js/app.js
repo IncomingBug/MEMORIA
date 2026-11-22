@@ -43,6 +43,36 @@ class MemoriaApp {
     button.textContent = adapter?.currentUser ? "Account" : "Sign in";
   }
 
+  updateFullscreenButton() {
+    const button = document.getElementById("homeFullscreenBtn");
+    if (!button) return;
+    const isFullscreen = Boolean(document.fullscreenElement);
+    const label = isFullscreen ? "Exit fullscreen" : "Fullscreen";
+    button.setAttribute("aria-label", isFullscreen ? "Exit fullscreen" : "Enter fullscreen");
+    button.setAttribute("aria-pressed", String(isFullscreen));
+    button.title = isFullscreen ? "Exit fullscreen" : "Enter fullscreen";
+    const text = button.querySelector(".fullscreen-button-label");
+    if (text) text.textContent = label;
+  }
+
+  async toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        const requestFullscreen = document.documentElement.requestFullscreen;
+        if (typeof requestFullscreen !== "function") {
+          window.app?.showToast?.("Fullscreen is not supported by this browser.");
+          return;
+        }
+        await requestFullscreen.call(document.documentElement);
+      }
+    } catch (error) {
+      const detail = String(error?.message || "Unknown browser error.");
+      window.app?.showToast?.(`Could not change fullscreen mode: ${detail}`);
+    }
+  }
+
   renderFirebaseAuth(initialError = "") {
     let panel = document.getElementById("firebaseAuthPanel");
     if (!panel) {
@@ -131,6 +161,12 @@ class MemoriaApp {
     document.getElementById("homeAccountBtn")?.addEventListener("click", () => {
       this.renderFirebaseAuth();
     });
+
+    document.getElementById("homeFullscreenBtn")?.addEventListener("click", () => {
+      this.toggleFullscreen();
+    });
+    document.addEventListener("fullscreenchange", () => this.updateFullscreenButton());
+    this.updateFullscreenButton();
 
     const closedBookCover = document.getElementById("homeClosedBookCover");
     const openScrapbook = () => {

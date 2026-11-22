@@ -109,8 +109,20 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 
 .header-actions {
   display: flex;
-  gap: 16px;
+  gap: 10px;
   align-items: center;
+}
+
+.fullscreen-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.fullscreen-btn > span:first-child {
+  font-size: 18px;
+  line-height: 1;
 }
 
 .btn-primary {
@@ -442,6 +454,43 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 }
 
 @media (max-width: 768px) {
+  .app-header {
+    padding: 0 12px;
+  }
+
+  .brand {
+    gap: 6px;
+  }
+
+  .brand-title {
+    font-size: 22px;
+    letter-spacing: 3px;
+  }
+
+  .brand-subtitle {
+    display: none;
+  }
+
+  .header-actions {
+    gap: 6px;
+  }
+
+  .header-actions .btn-primary,
+  .header-actions .btn-secondary {
+    padding: 8px 10px;
+    font-size: 11px;
+    letter-spacing: 0.3px;
+  }
+
+  .fullscreen-btn {
+    min-width: 36px;
+    padding: 8px !important;
+  }
+
+  .fullscreen-button-label {
+    display: none;
+  }
+
   .preview-layout {
     grid-template-columns: 1fr;
   }
