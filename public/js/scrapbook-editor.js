@@ -170,7 +170,7 @@ class ScrapbookEditor {
       ? pageElement.classList.contains("page-left")
       : pageIndex < 0 || pageIndex % 2 === 0;
     const inset = pageRect?.width
-      ? 24 / pageRect.width * 100
+      ? 14 / pageRect.width * 100
       : viewer?.getPageFlipEdgeInsetPercent?.() || 0;
     return {
       minX: leftEdge ? inset : 0,

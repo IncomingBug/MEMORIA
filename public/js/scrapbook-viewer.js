@@ -195,7 +195,7 @@ class ScrapbookViewer {
     const pageWidth = window.innerWidth < 768
       ? Math.min(window.innerWidth - 24, 460)
       : Math.min(530, Math.floor((window.innerWidth - 60) / 2));
-    return Math.min(20, 24 / Math.max(1, pageWidth) * 100);
+    return Math.min(20, 14 / Math.max(1, pageWidth) * 100);
   }
 
   clampRotatedElementToPage(pageEl, element, elementEl) {
@@ -212,7 +212,7 @@ class ScrapbookViewer {
     const radians = (Number(element.rotation) || 0) * Math.PI / 180;
     const rotatedWidth = Math.abs(widthPx * Math.cos(radians)) + Math.abs(heightPx * Math.sin(radians));
     const rotatedHeight = Math.abs(heightPx * Math.cos(radians)) + Math.abs(widthPx * Math.sin(radians));
-    const edgeWidth = pageEl.querySelector(".page-flip-edge-strip")?.getBoundingClientRect().width || 24;
+    const edgeWidth = pageEl.querySelector(".page-flip-edge-strip")?.getBoundingClientRect().width || 14;
     const safetyGap = Math.min(2, pageRect.width / 200);
     const leftPage = pageEl.classList.contains("page-left");
     const safeLeft = leftPage ? edgeWidth + safetyGap : 0;
@@ -492,6 +492,7 @@ class ScrapbookViewer {
         mobileScrollSupport: true,
         useMouseEvents: false,
         showPageCorners: false,
+        disableFlipByClick: true,
         cornerSize: 0,
         flippingTime: 650,
         startPage: this.currentPageIndex
