@@ -492,7 +492,7 @@ class ScrapbookViewer {
         mobileScrollSupport: true,
         useMouseEvents: false,
         showPageCorners: false,
-        disableFlipByClick: true,
+        disableFlipByClick: false,
         cornerSize: 0,
         flippingTime: 650,
         startPage: this.currentPageIndex

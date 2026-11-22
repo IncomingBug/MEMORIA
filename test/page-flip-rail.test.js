@@ -45,7 +45,7 @@ test("PageFlip's built-in click and mouse gestures are disabled", () => {
   viewer.initPageFlip();
 
   assert.equal(pageFlipOptions.useMouseEvents, false);
-  assert.equal(pageFlipOptions.disableFlipByClick, true);
+  assert.equal(pageFlipOptions.disableFlipByClick, false);
   assert.equal(pageFlipOptions.showPageCorners, false);
 });
 
