@@ -30,9 +30,7 @@ jobs:
           node-version: 20
 
       - name: Build static site
-        run: |
-          cd memoria-v2
-          node scripts/build-static.js
+        run: node scripts/build-static.js
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -40,7 +38,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'memoria-v2/dist'
+          path: 'dist'
 
       - name: Deploy to GitHub Pages
         id: deployment
