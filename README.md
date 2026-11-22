@@ -24,6 +24,7 @@ MEMORIA v2 runs in **two execution modes** behind a unified client storage abstr
 - **Authentication setup:** Enable Anonymous Authentication in Firebase Authentication for automatic demo sign-in, or use the email/password sign-in and account creation form.
 - **AI:** Static hosting does not expose a Groq key. Configure `window.MEMORIA_AI_ENDPOINT_URL` to a protected AI proxy; otherwise the documented fallback is used.
 - **Before sharing:** Enable Email/Password in Firebase Authentication, or enable Anonymous for one-click demo access. Deploy `firestore.rules` to the configured Firebase project before inviting testers.
+- Authentication and Firestore authorization are separate. On GitHub Pages, publish the rules manually in Firebase Console under **Firestore Database → Rules**; the Pages workflow only deploys the website.
 
 ---
 
@@ -215,6 +216,7 @@ MEMORIA/
 │   └── build-static.js
 ├── test/
 │   ├── atmosphere.test.js
+│   ├── wizard-flow.test.js
 │   ├── api.test.js
 │   └── data-schema.test.js
 ├── uploads/             (created at runtime; ignored by Git)

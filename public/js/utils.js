@@ -54,6 +54,14 @@ const Utils = {
       .join(" ");
   },
 
+  composeMemoryDescription(dayText, followUpAnswers, fallbackDescription = "") {
+    const story = String(dayText || "").trim() || String(fallbackDescription || "").trim();
+    const answers = Array.isArray(followUpAnswers)
+      ? followUpAnswers.map(item => String(item?.answer || "").trim()).filter(Boolean)
+      : [];
+    return [story, ...answers.map(answer => `• ${answer}`)].filter(Boolean).join("\n\n");
+  },
+
   getMemoryAtmosphere(mood, soundtrackMood, photoFilter) {
     const paperColors = {
       1: "#e5eaf0",

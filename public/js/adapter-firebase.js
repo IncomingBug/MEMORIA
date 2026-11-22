@@ -59,9 +59,21 @@ class AdapterFirebase {
   }
 
   async createAccount(email, password) {
+    if (this.currentUser?.isAnonymous) {
+      const credential = this.sdk.auth.EmailAuthProvider.credential(email, password);
+      const linked = await this.sdk.auth.linkWithCredential(this.currentUser, credential);
+      this.currentUser = linked.user;
+      return linked.user;
+    }
     const credential = await this.sdk.auth.createUserWithEmailAndPassword(this.auth, email, password);
     this.currentUser = credential.user;
     return credential.user;
+  }
+
+  async signOut() {
+    if (!this.auth) return;
+    await this.sdk.auth.signOut(this.auth);
+    this.currentUser = null;
   }
 
   async getUser() {

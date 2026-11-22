@@ -131,6 +131,17 @@ class CreateMemoryWizard {
     const container = document.getElementById("wizardStepContainer");
     if (!container) return;
 
+    const skipButton = document.getElementById("wizardSkipBtn");
+    if (skipButton) {
+      const finalStep = (this.flowType === "photo" && this.currentStep === 4) ||
+        (this.flowType === "text" && this.currentStep === 2);
+      skipButton.textContent = finalStep
+        ? "Save memory"
+        : this.flowType === "photo" && this.currentStep === 3
+          ? "Skip questions →"
+          : "Skip →";
+    }
+
     if (this.flowType === "photo") {
       this.renderPhotoFlow(container);
     } else {
@@ -344,15 +355,11 @@ class CreateMemoryWizard {
       });
 
       document.getElementById("step3NextBtn")?.addEventListener("click", () => {
-        // Merge day text and follow-up answers into description if description is empty
-        if (!this.state.description.trim()) {
-          let merged = this.state.dayText.trim();
-          const answers = this.state.followUpAnswers.filter(a => a && a.answer && a.answer.trim());
-          if (answers.length > 0) {
-            merged += "\n\n" + answers.map(a => `• ${a.question} ${a.answer}`).join("\n");
-          }
-          this.state.description = merged;
-        }
+        this.state.description = Utils.composeMemoryDescription(
+          this.state.dayText,
+          this.state.followUpAnswers,
+          this.state.description
+        );
         this.currentStep = 4;
         this.render();
       });
@@ -885,7 +892,17 @@ class CreateMemoryWizard {
 
   skipCurrentStep() {
     if (this.flowType === "photo") {
-      if (this.currentStep < 4) {
+      if (this.currentStep === 3) {
+        this.state.description = Utils.composeMemoryDescription(
+          this.state.dayText,
+          this.state.followUpAnswers,
+          this.state.description
+        );
+        this.currentStep = 4;
+        this.render();
+      } else if (this.currentStep === 4) {
+        this.attemptFinalSave();
+      } else if (this.currentStep < 4) {
         this.currentStep += 1;
         this.render();
       }
@@ -893,6 +910,8 @@ class CreateMemoryWizard {
       if (this.currentStep === 1) {
         this.currentStep = 2;
         this.render();
+      } else if (this.currentStep === 2) {
+        this.attemptFinalSave();
       }
     }
   }
@@ -1021,10 +1040,13 @@ class CreateMemoryWizard {
 
     window.app.showToast("Saving memory...");
 
+    let saveStage = "saving the memory";
+    let savedEntry = null;
     try {
       // 1. Upload media if present
       let uploadedMedia = [];
       if (this.state.media.length > 0) {
+        saveStage = "uploading its photos";
         uploadedMedia = await window.storageAdapter.uploadMedia(this.state.media);
       }
 
@@ -1043,9 +1065,11 @@ class CreateMemoryWizard {
         media: uploadedMedia
       };
 
-      const savedEntry = await window.storageAdapter.saveEntry(entryPayload);
+      saveStage = "saving the memory entry";
+      savedEntry = await window.storageAdapter.saveEntry(entryPayload);
 
       // 3. Auto-place entry onto the scrapbook
+      saveStage = "saving its scrapbook page";
       await window.scrapbookViewer.autoPlaceEntry(savedEntry);
 
       // 4. Clean up draft if this was resumed
@@ -1057,7 +1081,18 @@ class CreateMemoryWizard {
       this.close();
       window.app.refreshDashboard();
     } catch (err) {
-      window.app.showToast("Save failed: " + err.message);
+      const permissionDenied = err?.code === "permission-denied" ||
+        /missing or insufficient permissions/i.test(err?.message || "");
+      const detail = permissionDenied
+        ? `Firestore denied permission while ${saveStage}. Publish firestore.rules to the same Firebase project and confirm you're signed in.`
+        : err.message;
+      if (savedEntry) {
+        window.app.showToast(`Memory saved, but its scrapbook page could not be saved: ${detail}`);
+        this.close();
+        window.app.refreshDashboard();
+        return;
+      }
+      window.app.showToast("Save failed: " + detail);
     }
   }
 }

@@ -4,6 +4,7 @@ class MemoriaApp {
     this.entries = [];
     this.tags = [];
     this.user = null;
+    this.applicationStarted = false;
     this.init();
   }
 
@@ -23,11 +24,23 @@ class MemoriaApp {
   }
 
   async startApplication() {
-    window.wizard = new window.CreateMemoryWizard();
-    window.scrapbookViewer = new window.ScrapbookViewer();
-    window.scrapbookEditor = new window.ScrapbookEditor();
-    this.bindEvents();
+    if (!this.applicationStarted) {
+      window.wizard = new window.CreateMemoryWizard();
+      window.scrapbookViewer = new window.ScrapbookViewer();
+      window.scrapbookEditor = new window.ScrapbookEditor();
+      this.bindEvents();
+      this.applicationStarted = true;
+    }
+    this.updateAccountButton();
     await this.refreshDashboard();
+  }
+
+  updateAccountButton() {
+    const button = document.getElementById("homeAccountBtn");
+    const adapter = window.storageAdapter;
+    if (!button) return;
+    button.hidden = !adapter?.auth;
+    button.textContent = adapter?.currentUser ? "Account" : "Sign in";
   }
 
   renderFirebaseAuth(initialError = "") {
@@ -47,6 +60,7 @@ class MemoriaApp {
             <button type="submit" class="btn-primary" data-auth-action="signin">Sign in</button>
             <button type="submit" class="btn-secondary" data-auth-action="signup">Create account</button>
           </div>
+          <button type="button" class="btn-secondary" id="firebaseSignOutBtn">Sign out</button>
         </form>`;
       document.body.appendChild(panel);
       const form = panel.querySelector("#firebaseAuthForm");
@@ -74,10 +88,30 @@ class MemoriaApp {
           buttons.forEach(button => { button.disabled = false; });
         }
       });
+      panel.querySelector("#firebaseSignOutBtn")?.addEventListener("click", async event => {
+        const button = event.currentTarget;
+        const errorEl = panel.querySelector("#firebaseAuthError");
+        button.disabled = true;
+        try {
+          await window.storageAdapter.signOut();
+          panel.remove();
+          this.updateAccountButton();
+          this.renderFirebaseAuth();
+        } catch (error) {
+          errorEl.textContent = error.message || "Sign out failed.";
+        } finally {
+          button.disabled = false;
+        }
+      });
     }
     const errorEl = panel.querySelector("#firebaseAuthError");
+    const signOutButton = panel.querySelector("#firebaseSignOutBtn");
+    const currentUser = window.storageAdapter?.currentUser;
+    if (signOutButton) signOutButton.hidden = !currentUser;
     if (errorEl && initialError) {
       errorEl.textContent = `Firebase sign-in is unavailable. Enable Anonymous authentication or use an email account. ${initialError}`;
+    } else if (errorEl && currentUser) {
+      errorEl.textContent = `Signed in as ${currentUser.email || "guest account"}.`;
     } else if (errorEl) {
       errorEl.textContent = "Anonymous sign-in is disabled. Sign in with email or create an account.";
     }
@@ -92,6 +126,10 @@ class MemoriaApp {
 
     document.getElementById("homeViewMemoriesBtn")?.addEventListener("click", () => {
       window.scrapbookViewer.open();
+    });
+
+    document.getElementById("homeAccountBtn")?.addEventListener("click", () => {
+      this.renderFirebaseAuth();
     });
 
     const closedBookCover = document.getElementById("homeClosedBookCover");

@@ -23,6 +23,16 @@ test("Short stories receive a dated title with at least three words", () => {
   assert.equal(title, "Smiled November Day Memory");
 });
 
+test("Reflection questions stay separate from the saved day description", () => {
+  const description = Utils.composeMemoryDescription("A quiet walk by the river.", [
+    { question: "What did you hear?", answer: "Leaves moving in the wind." },
+    { question: "Who was with you?", answer: "" }
+  ]);
+
+  assert.equal(description, "A quiet walk by the river.\n\n• Leaves moving in the wind.");
+  assert.doesNotMatch(description, /What did you hear|Who was with you/);
+});
+
 test("Mood and soundtrack atmosphere produce distinct page treatments", () => {
   const quietDay = Utils.getMemoryAtmosphere(2, "quiet");
   const energeticDay = Utils.getMemoryAtmosphere(5, "restless");
