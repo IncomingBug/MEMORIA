@@ -48,3 +48,16 @@ test("Skipping the final text step saves instead of doing nothing", () => {
 
   assert.equal(saveRequested, true);
 });
+
+test("Firestore permission errors identify the failed wizard operation", () => {
+  const wizard = makeWizard("text", 2);
+
+  const message = wizard.storageErrorMessage(
+    { code: "permission-denied" },
+    "saving this draft"
+  );
+
+  assert.match(message, /saving this draft/);
+  assert.match(message, /firestore\.rules/);
+  assert.match(message, /firebase-config\.js/);
+});

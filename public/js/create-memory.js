@@ -71,10 +71,20 @@ class CreateMemoryWizard {
     if (el) el.hidden = !el.hidden;
   }
 
+  storageErrorMessage(error, operation) {
+    const permissionDenied = error?.code === "permission-denied" ||
+      /missing or insufficient permissions/i.test(error?.message || "");
+    if (permissionDenied) {
+      return `Firestore denied permission while ${operation}. Publish firestore.rules to the Firebase project configured in firebase-config.js, then try again.`;
+    }
+    return `Couldn't ${operation}: ${error?.message || String(error)}`;
+  }
+
   async open(flowType = "photo", resumeDraft = null) {
     this.flowType = flowType;
     this.currentStep = 1;
     this.draftId = resumeDraft ? resumeDraft.id : null;
+    this.tagLoadError = null;
 
     if (resumeDraft) {
       this.state = { ...this.state, ...(resumeDraft.partialEntry || {}) };
@@ -83,15 +93,26 @@ class CreateMemoryWizard {
       this.resetState();
     }
 
+    const loadErrors = [];
     try {
       this.availableTags = await window.storageAdapter.getTags();
+    } catch (error) {
+      this.availableTags = [];
+      this.tagLoadError = error;
+      loadErrors.push(this.storageErrorMessage(error, "loading your tags"));
+    }
+
+    try {
       const drafts = await window.storageAdapter.getDrafts();
       const draftNavBtn = document.getElementById("startFromDraftBtn");
       if (draftNavBtn) {
         draftNavBtn.hidden = drafts.length === 0;
       }
-    } catch (e) {
-      console.warn("Failed to load tags or drafts:", e.message);
+    } catch (error) {
+      loadErrors.push(this.storageErrorMessage(error, "loading your drafts"));
+    }
+    if (loadErrors.length) {
+      window.app.showToast(loadErrors.join(" "));
     }
 
     this.render();
@@ -628,7 +649,7 @@ class CreateMemoryWizard {
           this.state.tags.push(newTag.id);
           this.render();
         } catch (err) {
-          window.app.showToast("Failed to save tag: " + err.message);
+          window.app.showToast(this.storageErrorMessage(err, "saving the tag"));
         }
       });
 
@@ -814,7 +835,7 @@ class CreateMemoryWizard {
           this.state.tags.push(newTag.id);
           this.render();
         } catch (e) {
-          window.app.showToast("Failed to save tag: " + e.message);
+          window.app.showToast(this.storageErrorMessage(e, "saving the tag"));
         }
       });
 
@@ -935,7 +956,10 @@ class CreateMemoryWizard {
       this.close();
       window.app.refreshDashboard();
     } catch (err) {
-      window.app.showConfirmDialog(err.message, [{ label: "OK", primary: true, action: () => {} }]);
+      window.app.showConfirmDialog(
+        this.storageErrorMessage(err, "saving this draft"),
+        [{ label: "OK", primary: true, action: () => {} }]
+      );
     }
   }
 
@@ -1002,8 +1026,11 @@ class CreateMemoryWizard {
   // Final Save with Tag Warning check
   async attemptFinalSave() {
     if (this.state.tags.length === 0) {
+      const message = this.tagLoadError
+        ? `${this.storageErrorMessage(this.tagLoadError, "loading your tags")} You can still try saving without a tag.`
+        : "You sure you don't want to add any tag? Tags help find entries easier";
       window.app.showConfirmDialog(
-        "You sure you don't want to add any tag? Tags help find entries easier",
+        message,
         [
           { label: "Add a tag", primary: false, action: () => {} },
           { label: "Save anyway", primary: true, action: () => this.performSave() }
