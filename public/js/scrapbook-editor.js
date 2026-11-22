@@ -1280,7 +1280,8 @@ class ScrapbookEditor {
         <div id="customMusicFields" class="form-group" hidden>
           <label class="form-label">Song title</label><input class="form-input" id="customMusicTitle" maxlength="120" value="${this.escapeDialogValue(initial.title || "")}" placeholder="Song title">
           <label class="form-label">Artist</label><input class="form-input" id="customMusicArtist" maxlength="120" value="${this.escapeDialogValue(initial.artist || "")}" placeholder="Artist name">
-          <label class="form-label">Music URL</label><input class="form-input" id="customMusicUrl" type="url" value="${this.escapeDialogValue(initial.link || "")}" placeholder="https://...">
+          <label class="form-label">Music URL</label><input class="form-input" id="customMusicUrl" type="url" value="${this.escapeDialogValue(initial.link || "")}" placeholder="YouTube, Spotify, SoundCloud, or other link">
+          <small class="music-selection-status">YouTube video links play in the scrapbook when embedding is allowed.</small>
         </div>
         <div class="confirm-actions">
           <button type="button" class="btn-secondary" data-cancel>Cancel</button>

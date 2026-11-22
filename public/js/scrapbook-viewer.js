@@ -829,7 +829,15 @@ class ScrapbookViewer {
     iframe.allow = "autoplay; encrypted-media; picture-in-picture; web-share";
     iframe.allowFullscreen = true;
     frame.appendChild(iframe);
-    dialog.append(header, frame);
+    const footer = document.createElement("footer");
+    footer.className = "music-player-footer";
+    const fallbackLink = document.createElement("a");
+    fallbackLink.href = `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
+    fallbackLink.target = "_blank";
+    fallbackLink.rel = "noopener noreferrer";
+    fallbackLink.textContent = "Having trouble? Open on YouTube";
+    footer.appendChild(fallbackLink);
+    dialog.append(header, frame, footer);
     modal.appendChild(dialog);
 
     const close = () => this.closeYouTubePlayer();

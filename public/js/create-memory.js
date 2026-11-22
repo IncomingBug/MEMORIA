@@ -433,7 +433,7 @@ class CreateMemoryWizard {
               <!-- Music Search & Selection with YouTube, Apple Music or Custom Link -->
               <div class="form-group">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                  <label class="form-label" style="margin: 0;">Music Soundtrack</label>
+                  <label class="form-label" style="margin: 0;">Music Soundtrack (optional)</label>
                   <div style="display: flex; gap: 4px;">
                     <button type="button" class="btn-secondary music-source-btn active" data-src="youtube" style="font-size: 11px; padding: 2px 8px; border-color: var(--gold);">YouTube</button>
                     <button type="button" class="btn-secondary music-source-btn" data-src="apple" style="font-size: 11px; padding: 2px 8px;">Apple</button>
@@ -449,11 +449,13 @@ class CreateMemoryWizard {
                 <div id="customMusicBox" style="display: none; flex-direction: column; gap: 6px; margin-top: 6px;">
                   <input type="text" id="customSongTitle" class="form-input" placeholder="Song title...">
                   <input type="text" id="customSongArtist" class="form-input" placeholder="Artist name...">
-                  <input type="url" id="customSongUrl" class="form-input" placeholder="Web link (Spotify, SoundCloud, etc.)...">
+                  <input type="url" id="customSongUrl" class="form-input" placeholder="YouTube, Spotify, SoundCloud, or other link...">
                   <button type="button" class="btn-primary" id="saveCustomSongBtn" style="padding: 4px 10px; font-size: 12px; align-self: flex-start;">Attach Link</button>
+                  <small class="music-selection-status">YouTube video links play in the scrapbook when embedding is allowed.</small>
                 </div>
 
-                <div id="musicSearchResults" style="display: flex; flex-direction: column; gap: 4px; max-height: 140px; overflow-y: auto; margin-top: 6px;"></div>
+                <div id="musicSearchResults" class="music-search-results" aria-live="polite"></div>
+                <small class="music-selection-status" id="musicSelectionStatus"></small>
               </div>
 
               <div class="form-group">
@@ -477,7 +479,7 @@ class CreateMemoryWizard {
               <!-- Tags -->
               <div class="form-group">
                 <div style="display: flex; justify-content: space-between; align-items: baseline;">
-                  <label class="form-label">Tags</label>
+                  <label class="form-label">Tags (optional)</label>
                   <button type="button" style="font-size: 12px; color: var(--gold);" id="createTagModalBtn">+ Create a tag</button>
                 </div>
                 <div class="tags-chip-row" id="tagsSelectionRow">
@@ -490,6 +492,7 @@ class CreateMemoryWizard {
                     `;
                   }).join("")}
                 </div>
+                <small class="music-selection-status">Skip tags if you don’t need them.</small>
               </div>
 
               <!-- Inline Tag Creator Box (Hidden by default) -->
@@ -512,6 +515,13 @@ class CreateMemoryWizard {
       `;
 
       // Event handlers for Preview Step
+      const musicSelectionStatus = document.getElementById("musicSelectionStatus");
+      if (musicSelectionStatus) {
+        musicSelectionStatus.textContent = this.state.music.title
+          ? `Selected: ${this.state.music.title}${this.state.music.artist ? ` — ${this.state.music.artist}` : ""}`
+          : "You can save this memory without a soundtrack.";
+      }
+
       const titleInput = document.getElementById("previewTitleInput");
       titleInput?.addEventListener("input", (e) => {
         const val = e.target.value;
@@ -576,6 +586,7 @@ class CreateMemoryWizard {
         if (!term) return;
         const resContainer = document.getElementById("musicSearchResults");
         if (!resContainer) return;
+        this.stopMusicSearchPreviews(resContainer);
         resContainer.innerHTML = `<div style='font-size: 12px; color: var(--muted);'>Searching ${activeMusicSource === "youtube" ? "YouTube" : "Apple Music"}...</div>`;
         try {
           const results = activeMusicSource === "youtube"
@@ -586,21 +597,15 @@ class CreateMemoryWizard {
             resContainer.innerHTML = "<div style='font-size: 12px; color: var(--muted);'>No tracks found.</div>";
             return;
           }
-          resContainer.innerHTML = results.map((track, i) => `
-            <div class="music-search-item" data-index="${i}" style="display: flex; justify-content: space-between; align-items: center; padding: 6px; background: rgba(255,255,255,0.06); font-size: 12px; cursor: pointer; border-radius: 2px;">
-              <span>${track.provider === 'youtube' ? '▶' : '🎵'} <strong>${track.title}</strong> - ${track.artist}</span>
-              <span style="color: var(--gold);">&plus; Select</span>
-            </div>
-          `).join("");
-
-          resContainer.querySelectorAll(".music-search-item").forEach(item => {
-            item.addEventListener("click", () => {
-              const track = results[Number(item.dataset.index)];
-              this.state.music = track;
-              const input = document.getElementById("musicSearchInput");
-              if (input) input.value = `${track.title} - ${track.artist}`;
-              resContainer.innerHTML = "";
-            });
+          this.renderMusicSearchResults(resContainer, results, track => {
+            this.state.music = track;
+            const input = document.getElementById("musicSearchInput");
+            if (input) input.value = `${track.title} - ${track.artist}`;
+            this.stopMusicSearchPreviews(resContainer);
+            resContainer.replaceChildren();
+            if (musicSelectionStatus) {
+              musicSelectionStatus.textContent = `Selected: ${track.title}${track.artist ? ` — ${track.artist}` : ""}`;
+            }
           });
         } catch (err) {
           resContainer.innerHTML = `<div style='font-size: 12px; color: #ff8888;'>${err.message}</div>`;
@@ -615,6 +620,8 @@ class CreateMemoryWizard {
         window.app.showToast(`Music linked: ${title}`);
         const input = document.getElementById("musicSearchInput");
         if (input) input.value = `${title} - ${artist}`;
+        const status = document.getElementById("musicSelectionStatus");
+        if (status) status.textContent = `Selected: ${title}${artist ? ` — ${artist}` : ""}`;
       });
 
       // Tag selection toggles
@@ -742,14 +749,16 @@ class CreateMemoryWizard {
               <input type="text" id="simpleMusicInput" class="form-input" placeholder="Search song or artist..." value="${this.state.music.title ? `${this.state.music.title} - ${this.state.music.artist || ""}` : ""}">
               <button type="button" class="btn-secondary" id="simpleMusicSearchBtn">Search</button>
             </div>
-            <div id="simpleMusicResults" style="display: flex; flex-direction: column; gap: 4px; max-height: 100px; overflow-y: auto; margin-top: 6px;"></div>
+            <div id="simpleMusicResults" class="music-search-results" aria-live="polite"></div>
+            <small class="music-selection-status" id="simpleMusicSelectionStatus"></small>
           </div>
 
           <div class="form-group">
             <div style="display: flex; justify-content: space-between; align-items: baseline;">
-              <label class="form-label">Tags</label>
+              <label class="form-label">Tags (optional)</label>
               <button type="button" style="font-size: 12px; color: var(--gold);" id="simpleCreateTagBtn">+ Create a tag</button>
             </div>
+            <small class="music-selection-status">Skip tags if you don’t need them.</small>
             <div class="tags-chip-row">
               ${this.availableTags.map(t => {
                 const isSelected = this.state.tags.includes(t.id);
@@ -781,27 +790,30 @@ class CreateMemoryWizard {
 
       document.getElementById("simpleTitleInput")?.addEventListener("input", (e) => this.state.title = e.target.value);
       document.getElementById("simpleDescInput")?.addEventListener("input", (e) => this.state.description = e.target.value);
+      const simpleMusicSelectionStatus = document.getElementById("simpleMusicSelectionStatus");
+      if (simpleMusicSelectionStatus) {
+        simpleMusicSelectionStatus.textContent = this.state.music.title
+          ? `Selected: ${this.state.music.title}${this.state.music.artist ? ` — ${this.state.music.artist}` : ""}`
+          : "You can save without music.";
+      }
 
       document.getElementById("simpleMusicSearchBtn")?.addEventListener("click", async () => {
         const term = document.getElementById("simpleMusicInput")?.value.trim();
         if (!term) return;
         const resEl = document.getElementById("simpleMusicResults");
         if (!resEl) return;
+        this.stopMusicSearchPreviews(resEl);
         resEl.innerHTML = "<div style='font-size: 12px; color: var(--muted);'>Searching...</div>";
         try {
           const results = await window.storageAdapter.searchMusic(term);
-          resEl.innerHTML = results.map((t, idx) => `
-            <div class="music-search-item" data-index="${idx}" style="padding: 4px; font-size: 12px; background: rgba(255,255,255,0.05); cursor: pointer;">
-              🎵 ${t.title} - ${t.artist}
-            </div>
-          `).join("");
-          resEl.querySelectorAll(".music-search-item").forEach(item => {
-            item.addEventListener("click", () => {
-              const track = results[Number(item.dataset.index)];
-              this.state.music = track;
-              document.getElementById("simpleMusicInput").value = `${track.title} - ${track.artist}`;
-              resEl.innerHTML = "";
-            });
+          this.renderMusicSearchResults(resEl, results, track => {
+            this.state.music = track;
+            document.getElementById("simpleMusicInput").value = `${track.title} - ${track.artist}`;
+            this.stopMusicSearchPreviews(resEl);
+            resEl.replaceChildren();
+            if (simpleMusicSelectionStatus) {
+              simpleMusicSelectionStatus.textContent = `Selected: ${track.title}${track.artist ? ` — ${track.artist}` : ""}`;
+            }
           });
         } catch (e) {
           resEl.innerHTML = `<div style='font-size: 12px; color: #ff8888;'>${e.message}</div>`;
@@ -1023,21 +1035,115 @@ class CreateMemoryWizard {
     }
   }
 
-  // Final Save with Tag Warning check
+  stopMusicSearchPreviews(container) {
+    container.querySelectorAll("audio").forEach(audio => {
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
+    });
+    container.querySelectorAll(".music-search-preview iframe").forEach(iframe => {
+      iframe.src = "about:blank";
+      iframe.remove();
+    });
+    container.querySelectorAll(".music-search-preview-button").forEach(button => {
+      button.hidden = button.textContent === "Stop preview";
+    });
+  }
+
+  renderMusicSearchResults(container, tracks, onSelect) {
+    container.replaceChildren();
+
+    tracks.forEach(track => {
+      const item = document.createElement("div");
+      item.className = "music-search-item";
+
+      const description = document.createElement("span");
+      description.className = "music-search-description";
+      description.textContent = `${track.provider === "youtube" ? "▶" : "🎵"} ${track.title} — ${track.artist}`;
+
+      const actions = document.createElement("div");
+      actions.className = "music-search-actions";
+
+      const selectButton = document.createElement("button");
+      selectButton.type = "button";
+      selectButton.className = "music-search-select";
+      selectButton.textContent = "Select";
+      selectButton.addEventListener("click", () => onSelect(track));
+      actions.appendChild(selectButton);
+
+      const preview = document.createElement("div");
+      preview.className = "music-search-preview";
+      if (track.previewUrl) {
+        const audio = document.createElement("audio");
+        audio.controls = true;
+        audio.preload = "none";
+        audio.src = track.previewUrl;
+        audio.setAttribute("aria-label", `Preview ${track.title} by ${track.artist}`);
+        audio.addEventListener("play", () => {
+          container.querySelectorAll("audio").forEach(otherAudio => {
+            if (otherAudio !== audio) otherAudio.pause();
+          });
+          container.querySelectorAll(".music-search-preview iframe").forEach(iframe => {
+            iframe.src = "about:blank";
+            iframe.remove();
+          });
+        });
+        preview.appendChild(audio);
+      } else {
+        const videoId = String(track.videoId || track.id || "");
+        if (/^[A-Za-z0-9_-]{11}$/.test(videoId)) {
+          const previewButton = document.createElement("button");
+          previewButton.type = "button";
+          previewButton.className = "music-search-preview-button";
+          previewButton.textContent = "Preview video";
+          const stopButton = document.createElement("button");
+          stopButton.type = "button";
+          stopButton.className = "music-search-preview-button";
+          stopButton.textContent = "Stop preview";
+          stopButton.hidden = true;
+          previewButton.addEventListener("click", () => {
+            this.stopMusicSearchPreviews(container);
+            const iframe = document.createElement("iframe");
+            iframe.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoId)}?autoplay=1&playsinline=1`;
+            iframe.title = `Preview ${track.title}`;
+            iframe.allow = "autoplay; encrypted-media; picture-in-picture";
+            iframe.allowFullscreen = true;
+            preview.appendChild(iframe);
+            previewButton.hidden = true;
+            stopButton.hidden = false;
+          });
+          stopButton.addEventListener("click", () => {
+            const iframe = preview.querySelector("iframe");
+            if (iframe) {
+              iframe.src = "about:blank";
+              iframe.remove();
+            }
+            stopButton.hidden = true;
+            previewButton.hidden = false;
+          });
+          actions.appendChild(previewButton);
+          actions.appendChild(stopButton);
+        } else if (track.link) {
+          const link = document.createElement("a");
+          link.href = track.link;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.textContent = "Open search";
+          preview.appendChild(link);
+        } else {
+          const unavailable = document.createElement("span");
+          unavailable.textContent = "No preview available";
+          preview.appendChild(unavailable);
+        }
+      }
+
+      item.append(description, actions, preview);
+      container.appendChild(item);
+    });
+  }
+
+  // Music and tags are optional; validate a soundtrack only when the user has chosen or entered one.
   async attemptFinalSave() {
-    if (this.state.tags.length === 0) {
-      const message = this.tagLoadError
-        ? `${this.storageErrorMessage(this.tagLoadError, "loading your tags")} You can still try saving without a tag.`
-        : "You sure you don't want to add any tag? Tags help find entries easier";
-      window.app.showConfirmDialog(
-        message,
-        [
-          { label: "Add a tag", primary: false, action: () => {} },
-          { label: "Save anyway", primary: true, action: () => this.performSave() }
-        ]
-      );
-      return;
-    }
     await this.performSave();
   }
 
@@ -1052,16 +1158,20 @@ class CreateMemoryWizard {
         window.app.showToast("Add at least one photo to the day's memory.");
         return;
       }
-      let musicUrl;
-      try {
-        musicUrl = new URL(this.state.music.link);
-      } catch {
-        window.app.showToast("Choose a song or add a valid music link.");
-        return;
-      }
-      if (!this.state.music.title || !["http:", "https:"].includes(musicUrl.protocol)) {
-        window.app.showToast("Choose a song or add a valid music link.");
-        return;
+      const musicTitle = String(this.state.music?.title || "").trim();
+      const musicLink = String(this.state.music?.link || "").trim();
+      if (musicTitle || musicLink) {
+        let musicUrl;
+        try {
+          musicUrl = new URL(musicLink);
+        } catch {
+          window.app.showToast("Choose a song or provide a valid music link, or clear the music selection.");
+          return;
+        }
+        if (!musicTitle || !["http:", "https:"].includes(musicUrl.protocol)) {
+          window.app.showToast("Choose a song and provide a valid music link, or clear the music selection.");
+          return;
+        }
       }
     }
 

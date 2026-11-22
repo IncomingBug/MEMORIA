@@ -98,6 +98,7 @@ test("YouTube IDs are extracted only from supported YouTube URL formats", () => 
   assert.equal(viewer.getYouTubeVideoId({ videoId: "dQw4w9WgXcQ" }), "dQw4w9WgXcQ");
   assert.equal(viewer.getYouTubeVideoId({ link: "https://youtu.be/dQw4w9WgXcQ?t=4" }), "dQw4w9WgXcQ");
   assert.equal(viewer.getYouTubeVideoId({ link: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" }), "dQw4w9WgXcQ");
+  assert.equal(viewer.getYouTubeVideoId({ provider: "custom", link: "https://youtube.com/watch?v=dQw4w9WgXcQ" }), "dQw4w9WgXcQ");
   assert.equal(viewer.getYouTubeVideoId({ embedUrl: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ" }), "dQw4w9WgXcQ");
   assert.equal(viewer.getYouTubeVideoId({ link: "https://example.com/watch?v=dQw4w9WgXcQ" }), "");
   assert.equal(

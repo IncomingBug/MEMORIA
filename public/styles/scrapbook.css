@@ -1101,6 +1101,16 @@
   border: 0;
 }
 
+.music-player-footer {
+  padding: 10px 16px 14px;
+  text-align: right;
+}
+
+.music-player-footer a {
+  color: #f0cd88;
+  font-size: 12px;
+}
+
 /* Social Embed Card (Instagram & TikTok - Point 8) */
 .social-embed-card {
   background: #191417;
