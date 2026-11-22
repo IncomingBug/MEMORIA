@@ -427,6 +427,36 @@ class AdapterFirebase {
     };
     return fallbacks[label] || `A thoughtful ${period || "period"} recorded in your journal.`;
   }
+
+  async getAiStoryReel(params) {
+    const endpoint = this.config.aiEndpointUrl || window.MEMORIA_AI_ENDPOINT_URL || "";
+    const urls = [
+      ...(endpoint ? [endpoint.replace(/\/$/, "") + "/reel"] : []),
+      "/api/ai/reel"
+    ];
+    let lastError;
+
+    for (const url of urls) {
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(params)
+        });
+        if (!res.ok) throw new Error(`Story reel endpoint returned ${res.status}.`);
+        const data = await res.json();
+        if (!data.title || !Array.isArray(data.captions)) {
+          throw new Error("Story reel endpoint returned an invalid response.");
+        }
+        return data;
+      } catch (error) {
+        lastError = error;
+        console.warn("Story reel AI endpoint unavailable:", error.message);
+      }
+    }
+
+    throw new Error(lastError?.message || "Story reel AI endpoint unavailable.");
+  }
 }
 
 window.AdapterFirebase = AdapterFirebase;

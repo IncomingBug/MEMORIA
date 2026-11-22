@@ -207,4 +207,39 @@ test("Express API Suite: User, Entries, Drafts Limit, Tags, Uploads", async (t) 
     const data = await res.json();
     assert(typeof data.summary === "string" && data.summary.length > 5);
   });
+
+  await t.test("POST /api/ai/reel returns a structured fallback without an AI key", async () => {
+    const originalGroqApiKey = process.env.GROQ_API_KEY;
+    delete process.env.GROQ_API_KEY;
+    try {
+      const res = await fetch(`${baseUrl}/api/ai/reel`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          startDate: "2026-11-21",
+          endDate: "2026-11-22",
+          entries: [
+            { id: "memory-1", date: "2026-11-21", title: "Coffee by the sea", description: "We watched the waves.", mood: 5 }
+          ]
+        })
+      });
+      assert.equal(res.status, 200);
+      const data = await res.json();
+      assert.equal(data.aiGenerated, false);
+      assert.equal(data.title, "Memories of last weekend");
+      assert.deepEqual(data.captions, [{ id: "memory-1", caption: "We watched the waves." }]);
+    } finally {
+      if (originalGroqApiKey === undefined) delete process.env.GROQ_API_KEY;
+      else process.env.GROQ_API_KEY = originalGroqApiKey;
+    }
+  });
+
+  await t.test("POST /api/ai/reel rejects an empty selection", async () => {
+    const res = await fetch(`${baseUrl}/api/ai/reel`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ entries: [] })
+    });
+    assert.equal(res.status, 400);
+  });
 });

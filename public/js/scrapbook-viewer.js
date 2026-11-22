@@ -527,6 +527,228 @@ class ScrapbookViewer {
     }
   }
 
+  getLastWeekendRange(now = new Date()) {
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const start = new Date(today);
+    start.setDate(today.getDate() - ((today.getDay() + 1) % 7));
+    const end = new Date(start);
+    end.setDate(start.getDate() + 1);
+    if (end > today) end.setTime(today.getTime());
+
+    const dateKey = date => [
+      date.getFullYear(),
+      String(date.getMonth() + 1).padStart(2, "0"),
+      String(date.getDate()).padStart(2, "0")
+    ].join("-");
+    return { startDate: dateKey(start), endDate: dateKey(end) };
+  }
+
+  getLastWeekendEntries(range) {
+    return this.entries
+      .filter(entry => entry.date >= range.startDate && entry.date <= range.endDate)
+      .sort((a, b) => `${a.date} ${a.time || ""}`.localeCompare(`${b.date} ${b.time || ""}`))
+      .slice(-5);
+  }
+
+  createFallbackStoryReel(entries) {
+    return {
+      title: "Memories of last weekend",
+      intro: "A simple timeline of the moments you saved.",
+      captions: entries.map(entry => ({
+        id: entry.id,
+        caption: entry.description || entry.title || "A moment from the weekend."
+      })),
+      aiGenerated: false
+    };
+  }
+
+  async openStoryReel() {
+    const range = this.getLastWeekendRange();
+    const entries = this.getLastWeekendEntries(range);
+    const modal = document.createElement("div");
+    modal.className = "story-reel-modal";
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-label", "Memories of last weekend story reel");
+    modal.innerHTML = `
+      <section class="story-reel-dialog">
+        <header class="story-reel-header">
+          <div>
+            <p class="story-reel-kicker">MEMORIA · STORY REEL</p>
+            <h2 class="story-reel-title">Memories of last weekend</h2>
+            <p class="story-reel-range"></p>
+          </div>
+          <button type="button" class="story-reel-close" aria-label="Close story reel">×</button>
+        </header>
+        <div class="story-reel-status" role="status" aria-live="polite"></div>
+        <p class="story-reel-intro" hidden></p>
+        <div class="story-reel-content" aria-live="polite">
+          <div class="story-reel-loading">Gathering your saved moments…</div>
+        </div>
+        <div class="story-reel-controls" hidden>
+          <button type="button" class="btn-secondary story-reel-prev">← Previous</button>
+          <button type="button" class="btn-primary story-reel-toggle">Pause</button>
+          <button type="button" class="btn-secondary story-reel-next">Next →</button>
+          <span class="story-reel-counter"></span>
+        </div>
+        <p class="story-reel-privacy">AI uses your saved text, mood, and music details to write the story. Photos appear here but are not sent to AI.</p>
+      </section>
+    `;
+    document.body.appendChild(modal);
+
+    const closeButton = modal.querySelector(".story-reel-close");
+    let timer = null;
+    const close = () => {
+      if (timer) clearInterval(timer);
+      document.removeEventListener("keydown", handleKeydown);
+      modal.remove();
+    };
+    const handleKeydown = event => {
+      if (event.key === "Escape") close();
+    };
+    closeButton.addEventListener("click", close);
+    modal.addEventListener("click", event => {
+      if (event.target === modal) close();
+    });
+    document.addEventListener("keydown", handleKeydown);
+    closeButton.focus();
+
+    const rangeText = range.startDate === range.endDate
+      ? Utils.formatDate(range.startDate)
+      : `${Utils.formatDate(range.startDate)} – ${Utils.formatDate(range.endDate)}`;
+    modal.querySelector(".story-reel-range").textContent = rangeText;
+
+    const content = modal.querySelector(".story-reel-content");
+    if (entries.length === 0) {
+      content.innerHTML = `
+        <div class="story-reel-empty">
+          <h3>No saved moments from last weekend yet</h3>
+          <p>Save a memory and it can become part of your next story reel.</p>
+          <button type="button" class="btn-primary">＋ Create a memory</button>
+        </div>
+      `;
+      content.querySelector("button")?.addEventListener("click", () => {
+        close();
+        window.wizard?.open("photo");
+      });
+      modal.querySelector(".story-reel-privacy").hidden = true;
+      return;
+    }
+
+    let story = this.createFallbackStoryReel(entries);
+    try {
+      const aiStory = await window.storageAdapter.getAiStoryReel({
+        startDate: range.startDate,
+        endDate: range.endDate,
+        entries: entries.map(entry => ({
+          id: String(entry.id || ""),
+          date: String(entry.date || ""),
+          title: String(entry.title || ""),
+          description: String(entry.description || ""),
+          mood: entry.mood,
+          music: [entry.music?.title, entry.music?.artist].filter(Boolean).join(" — ")
+        }))
+      });
+      if (aiStory && Array.isArray(aiStory.captions)) story = aiStory;
+    } catch (error) {
+      console.warn("Could not generate the weekend story reel:", error.message);
+    }
+    if (!modal.isConnected) return;
+
+    const title = String(story.title || "Memories of last weekend").slice(0, 80);
+    modal.querySelector(".story-reel-title").textContent = title;
+    const intro = modal.querySelector(".story-reel-intro");
+    intro.textContent = String(story.intro || "").slice(0, 220);
+    intro.hidden = !intro.textContent;
+    modal.querySelector(".story-reel-status").textContent = story.aiGenerated
+      ? "AI story created from your saved memories."
+      : "AI is unavailable; showing your saved moments in chronological order.";
+    const captions = new Map(
+      (Array.isArray(story.captions) ? story.captions : [])
+        .filter(item => item && typeof item === "object")
+        .map(item => [String(item.id), String(item.caption || "")])
+    );
+    const controls = modal.querySelector(".story-reel-controls");
+    const visual = document.createElement("div");
+    visual.className = "story-reel-visual";
+    const details = document.createElement("div");
+    details.className = "story-reel-details";
+    content.replaceChildren(visual, details);
+
+    let currentIndex = 0;
+    let isPlaying = false;
+    const stop = () => {
+      if (timer) clearInterval(timer);
+      timer = null;
+      isPlaying = false;
+      modal.querySelector(".story-reel-toggle").textContent = "Play";
+    };
+    const showSlide = index => {
+      currentIndex = index;
+      const entry = entries[index];
+      visual.replaceChildren();
+      const media = (entry.media || []).find(item => ["image", "gif"].includes(item.type)) || entry.media?.[0];
+      const imageUrl = media?.pathOrDocId || media?.url || media?.dataUrl;
+      if (imageUrl) {
+        const image = document.createElement("img");
+        image.className = "story-reel-image";
+        image.src = imageUrl;
+        image.alt = entry.title || "Saved weekend memory";
+        visual.appendChild(image);
+      } else {
+        const placeholder = document.createElement("div");
+        placeholder.className = "story-reel-no-image";
+        placeholder.textContent = "✦";
+        visual.appendChild(placeholder);
+      }
+
+      details.replaceChildren();
+      const entryTitle = document.createElement("h3");
+      entryTitle.textContent = entry.title || Utils.formatDate(entry.date);
+      const meta = document.createElement("p");
+      meta.className = "story-reel-meta";
+      meta.textContent = [
+        Utils.formatDate(entry.date),
+        entry.mood ? `Mood ${entry.mood}/5` : "",
+        entry.music?.title || ""
+      ].filter(Boolean).join(" · ");
+      const caption = document.createElement("p");
+      caption.className = "story-reel-caption";
+      caption.textContent = captions.get(String(entry.id)) ||
+        String(entry.description || entry.title || "A moment from the weekend.").slice(0, 180);
+      details.append(entryTitle, meta, caption);
+      modal.querySelector(".story-reel-counter").textContent = `${index + 1} / ${entries.length}`;
+    };
+    const setPlaying = shouldPlay => {
+      if (timer) clearInterval(timer);
+      timer = null;
+      isPlaying = shouldPlay;
+      modal.querySelector(".story-reel-toggle").textContent = isPlaying ? "Pause" : "Play";
+      if (isPlaying) {
+        timer = setInterval(() => {
+          if (currentIndex >= entries.length - 1) {
+            stop();
+            return;
+          }
+          showSlide(currentIndex + 1);
+        }, 5000);
+      }
+    };
+
+    modal.querySelector(".story-reel-prev").addEventListener("click", () => {
+      showSlide((currentIndex - 1 + entries.length) % entries.length);
+      setPlaying(false);
+    });
+    modal.querySelector(".story-reel-next").addEventListener("click", () => {
+      showSlide((currentIndex + 1) % entries.length);
+      setPlaying(false);
+    });
+    modal.querySelector(".story-reel-toggle").addEventListener("click", () => setPlaying(!isPlaying));
+    controls.hidden = false;
+    showSlide(0);
+    setPlaying(true);
+  }
+
   // -------------------------------------------------------------------
   // CATEGORY 1: OVERVIEW PAGES
   // -------------------------------------------------------------------
@@ -622,6 +844,10 @@ class ScrapbookViewer {
           <span>All Entries</span>
           <span>&rarr;</span>
         </div>
+        <button type="button" class="overview-nav-item overview-story-reel" id="navStoryReelBtn">
+          <span>🎞️ Story Reel</span>
+          <span>Last weekend →</span>
+        </button>
       </div>
     `;
 
@@ -630,6 +856,7 @@ class ScrapbookViewer {
     page.querySelector("#navSearchBtn")?.addEventListener("click", () => this.showStartView("search"));
     page.querySelector("#navChaptersBtn")?.addEventListener("click", () => this.showStartView("chapters"));
     page.querySelector("#navAllEntriesBtn")?.addEventListener("click", () => window.app.openGalleryModal());
+    page.querySelector("#navStoryReelBtn")?.addEventListener("click", () => this.openStoryReel());
 
     return page;
   }

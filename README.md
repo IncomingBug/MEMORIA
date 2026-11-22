@@ -12,7 +12,7 @@ MEMORIA v2 runs in **two execution modes** behind a unified client storage abstr
 ### Mode A: Full Local Server (Express + SQLite)
 - **Runtime:** Node.js + Express 5 with embedded SQLite (`better-sqlite3`).
 - **Media Storage:** Stored directly on disk under `uploads/<userId>/`.
-- **AI Integration:** Server-side proxy for Groq API (`POST /api/ai/followup`, `POST /api/ai/summary`) using `GROQ_API_KEY`. Never exposes secrets to browser clients. Falls back intelligently to built-in conversational heuristics if no key is present.
+- **AI Integration:** Server-side proxy for Groq API (`POST /api/ai/followup`, `POST /api/ai/summary`, `POST /api/ai/reel`) using `GROQ_API_KEY`. Never exposes secrets to browser clients. Weekend reels use up to five saved memories; only their text, mood, and music details are sent for narration, while photos stay in the client-side slideshow.
 - **Music Search:** Server-side proxy to official iTunes / Apple Music catalog with timeout protection.
 - **Persistence:** Local SQLite database file (`memoria.sqlite`).
 

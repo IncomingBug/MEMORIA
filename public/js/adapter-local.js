@@ -176,6 +176,19 @@ class AdapterLocal {
     const data = await res.json();
     return data.summary || "";
   }
+
+  async getAiStoryReel(params) {
+    const res = await fetch("/api/ai/reel", {
+      method: "POST",
+      headers: this.headers,
+      body: JSON.stringify(params)
+    });
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({}));
+      throw new Error(error.error || "Could not generate the story reel.");
+    }
+    return await res.json();
+  }
 }
 
 window.AdapterLocal = AdapterLocal;
