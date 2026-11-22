@@ -170,8 +170,12 @@
 #bookStage.editing-mode .stage-center {
   flex: 0 0 auto;
   height: calc(100vh - 254px);
-  min-height: 480px;
+  min-height: min(480px, calc(100vh - 254px));
   margin-bottom: 0;
+}
+
+#bookStage.editing-mode .spread-book-wrapper {
+  height: min(780px, max(160px, calc(100vh - 284px)));
 }
 
 /* Large Open Book Spread Shell */

@@ -488,12 +488,13 @@ class ScrapbookViewer {
 
     if (window.St && window.St.PageFlip) {
       const isMobile = window.innerWidth < 768;
+      const isEditing = Boolean(window.scrapbookEditor?.isOpen);
       // Zoomed-in dimensions (Point 11)
       const width = isMobile
         ? Math.min(window.innerWidth - 24, 460)
         : Math.min(530, Math.floor((window.innerWidth - 60) / 2));
-      const editorReserve = window.scrapbookEditor?.isOpen ? 254 : 24;
-      const availableHeight = Math.max(480, window.innerHeight - 54 - editorReserve);
+      const editorReserve = isEditing ? 254 : 24;
+      const availableHeight = Math.max(isEditing ? 160 : 480, window.innerHeight - 54 - editorReserve);
       const userPageIndex = Math.max(0, this.currentPageIndex - 2);
       const currentPaperHeight = this.scrapbookData?.pages?.[userPageIndex]?.paper?.height || 710;
       const height = Math.min(isMobile ? 680 : 780, availableHeight, currentPaperHeight);
@@ -504,7 +505,7 @@ class ScrapbookViewer {
         size: "fixed",
         minWidth: 320,
         maxWidth: 600,
-        minHeight: 480,
+        minHeight: isEditing ? Math.min(480, height) : 480,
         maxHeight: 960,
         maxShadowOpacity: 0.55,
         showCover: false,
