@@ -98,6 +98,18 @@
   overflow: hidden;
 }
 
+#bookStage.editing-mode {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+#bookStage.editing-mode .book-top-navbar {
+  position: sticky;
+  top: 0;
+  flex-shrink: 0;
+}
+
 .book-top-navbar {
   height: 54px;
   display: flex;
